@@ -1,0 +1,23 @@
+name: Verificar Color Chaos
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar herramientas verificadas
+        run: bash tools/setup.sh
+      - name: Compilar, comprobar reglas y simular servidor
+        run: bash tools/validate.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ColorChaos-Studio
+          path: build/ColorChaos.rbxlx
+          if-no-files-found: error

@@ -1,6 +1,8 @@
 -- Minimal orchestration mocks, not a Roblox engine or physics replacement.
 local now = 1
 local jobs = {}
+local warnings = {}
+local function warn(message) table.insert(warnings, tostring(message)) end
 local os = { clock = function() return now end, time = function() return 1700000000 + math.floor(now) end }
 local function enqueue(thread, due)
 	table.insert(jobs, { Thread = thread, Due = due })
@@ -124,16 +126,46 @@ local players = Instance.new("Players")
 players.PlayerAdded, players.PlayerRemoving = signal(), signal()
 players.List = {}
 function players:GetPlayers() return table.clone(self.List) end
+function players:GetPlayerByUserId(id)
+	for _, player in ipairs(self.List) do
+		if player.UserId == id and player.Parent == self then return player end
+	end
+	return nil
+end
 local replicated = Instance.new("ReplicatedStorage")
 local shared = Instance.new("Folder")
 shared.Name, shared.Parent = "ColorChaos", replicated
 local workspace = Instance.new("Workspace")
 local saved = {}
+local commitThenThrow = false
+local storeUpdates = 0
 local store = {
 	UpdateAsync = function(_, key, callback)
+		storeUpdates += 1
 		local result = callback(clone(saved[key]))
 		if result then saved[key] = clone(result) end
+		if commitThenThrow then
+			commitThenThrow = false
+			error("Simulated lost acknowledgement after committed UpdateAsync")
+		end
 		return result
+	end,
+}
+local vipOwnership, ownershipQueries = false, 0
+local purchasePrompts = {}
+local marketplace = {
+	PromptProductPurchaseFinished = signal(),
+	PromptGamePassPurchaseFinished = signal(),
+	UserOwnsGamePassAsync = function(_, userId, passId)
+		assert(type(userId) == "number" and passId == 201, "Unexpected pass ownership lookup")
+		ownershipQueries += 1
+		return vipOwnership
+	end,
+	PromptProductPurchase = function(_, player, productId)
+		table.insert(purchasePrompts, { Player = player, Kind = "Product", Id = productId })
+	end,
+	PromptGamePassPurchase = function(_, player, passId)
+		table.insert(purchasePrompts, { Player = player, Kind = "Pass", Id = passId })
 	end,
 }
 local services = {
@@ -142,6 +174,7 @@ local services = {
 	RunService = { IsStudio = function() return false end },
 	HttpService = { GenerateGUID = function() return "mock-guid" end },
 	Debris = { AddItem = function(_, object) object:Destroy() end },
+	MarketplaceService = marketplace,
 }
 local game = { JobId = "mock-job", GetService = function(_, name) return assert(services[name], name) end, BindToClose = function() end }
 local function addPlayer(id)
@@ -166,6 +199,10 @@ local first = addPlayer(1)
 -- The Python runner inserts unmodified module bodies and the actual server here.
 -- @MODULES_AND_SERVER@
 
+-- Synthetic IDs exist only in this simulation; actual Config retains zero IDs
+-- until the owner creates the products and pass for their Roblox experience.
+for index, product in ipairs(Config.Commerce.Products) do product.ProductId = 100 + index end
+Config.Commerce.VIP.PassId = 201
 task.spawn(serverMain)
 local function active(mode)
 	return first.Latest and first.Latest.Phase == "JUEGO" and first.Latest.Mode == Config.Modes[mode].Name
@@ -254,4 +291,63 @@ end
 runUntil(function() return first.Latest.Phase == "RESULTADOS" end, 3)
 check("surviving rescuer receives the team victory", late.Latest.Profile.Coins == 35 and late.Latest.Profile.Wins == 1)
 check("eliminated contributor receives only participation", first.Latest.Profile.Coins == 80 and first.Latest.Profile.Wins == 2)
-print(string.format("All %d mock-server checks passed. Physics and real Roblox services still require Studio.", checks))
+
+local action = shared.Remotes.Action
+local function sendAction(player, kind, value)
+	advance(0.35)
+	action.OnServerEvent:Fire(player, kind, value)
+end
+local function receipt(playerId, productId, purchaseId)
+	return marketplace.ProcessReceipt({ PlayerId = playerId, ProductId = productId, PurchaseId = purchaseId })
+end
+local granted, retry = Enum.ProductPurchaseDecision.PurchaseGranted, Enum.ProductPurchaseDecision.NotProcessedYet
+check("first paid product commits coins and receipt together", receipt(1, 101, "real-server-receipt-100") == granted
+	and first.Latest.Profile.Coins == 180 and saved.Player_1.Data.Coins == 180
+	and saved.Player_1.Data.Receipts["real-server-receipt-100"] == 100)
+check("actual server receipt replay cannot double-credit currency", receipt(1, 101, "real-server-receipt-100") == granted
+	and first.Latest.Profile.Coins == 180 and saved.Player_1.Data.Coins == 180)
+commitThenThrow = true
+check("lost acknowledgement leaves receipt unresolved despite stored commit", receipt(1, 102, "real-server-receipt-400") == retry
+	and first.Latest.Profile.Coins == 180 and saved.Player_1.Data.Coins == 580
+	and saved.Player_1.Data.Receipts["real-server-receipt-400"] == 400)
+advance(2.1)
+check("scheduled recovery merges paid coins instead of overwriting committed grant", first.Latest.Profile.Coins == 580
+	and saved.Player_1.Data.Coins == 580 and saved.Player_1.Data.Receipts["real-server-receipt-400"] == 400)
+check("receipt replay after recovery acknowledges once without another credit", receipt(1, 102, "real-server-receipt-400") == granted
+	and first.Latest.Profile.Coins == 580 and saved.Player_1.Data.Coins == 580)
+local updatesBefore = storeUpdates
+advance(Config.SaveInterval)
+check("later periodic saves preserve purchased coins and receipt history", storeUpdates > updatesBefore
+	and saved.Player_1.Data.Coins == 580 and saved.Player_1.Data.Receipts["real-server-receipt-100"] == 100
+	and saved.Player_1.Data.Receipts["real-server-receipt-400"] == 400)
+first.Parent = nil
+check("disconnected receipt cannot be acknowledged", receipt(1, 101, "offline-receipt") == retry)
+first.Parent = players
+check("unconfigured product receipt cannot be acknowledged", receipt(1, 999999, "unknown-product-receipt") == retry
+	and saved.Player_1.Data.Coins == 580)
+local beforeQueries = ownershipQueries
+marketplace.PromptGamePassPurchaseFinished:Fire(first, 201, true)
+check("pass prompt success without ownership grants no VIP", first.Latest.Profile.VIP == false and ownershipQueries == beforeQueries + 1)
+vipOwnership = true
+marketplace.PromptGamePassPurchaseFinished:Fire(first, 201, true)
+check("verified ownership gives VIP title without gameplay advantages", first.Latest.Profile.VIP == true
+	and first.Character.HumanoidRootPart:FindFirstChild("VIPTitle") ~= nil and first.Latest.Profile.Coins == 580)
+sendAction(first, "Palette", 5)
+check("verified VIP can equip exclusive Prisma aura without spending", first.Latest.Profile.Selected == 5 and first.Latest.Profile.Coins == 580)
+sendAction(late, "Palette", 5)
+check("player without verified entitlement cannot equip VIP aura", late.Latest.Profile.Selected == 1)
+check("participating rounds and victories complete daily missions", first.Latest.Progression.Missions[1].Complete
+	and first.Latest.Progression.Missions[3].Complete and first.Latest.Progression.XP == 95)
+sendAction(first, "ClaimMission", "play3")
+check("server grants completed daily mission exactly once", first.Latest.Profile.Coins == 610
+	and first.Latest.Progression.Missions[1].Claimed)
+sendAction(first, "ClaimMission", "play3")
+check("daily mission replay cannot duplicate reward", first.Latest.Profile.Coins == 610)
+sendAction(first, "ClaimMission", "win2")
+check("second legitimate mission pays only its configured reward", first.Latest.Profile.Coins == 660)
+sendAction(late, "ClaimMission", "play3")
+check("idle and late arrivals cannot claim another player's mission", late.Latest.Profile.Coins == 35 and not late.Latest.Progression.Missions[1].Claimed)
+sendAction(first, "ClaimMission", "invented")
+check("unknown mission requests cannot increase currency", first.Latest.Profile.Coins == 660)
+
+print(string.format("All %d mock-server checks passed. These mocks do not run Roblox physics, network, real DataStores or billing.", checks))

@@ -1,217 +1,83 @@
-# Color Chaos
+# Color Chaos — entrega 1.0.0
 
-## Descargas desde GitHub
+Experiencia cooperativa para 1–12 jugadores. Una máquina perdió la energía de la ciudad: el equipo recupera colores, reconstruye puentes y rescata chispas para reparar el reactor. Código, escenarios y gráficos creados para este proyecto; el nombre es provisional.
 
-- [Juego para abrir en Roblox Studio](https://github.com/SSJ-ARIEL/Robloxstudio/raw/refs/heads/main/downloads/ColorChaos.rbxlx).
-- [Proyecto completo en ZIP](https://github.com/SSJ-ARIEL/Robloxstudio/archive/refs/heads/main.zip).
+## Descargar y publicar
 
-El ZIP incluye `downloads/ColorChaos.rbxlx`. Si el navegador muestra el archivo como texto en lugar de descargarlo, descarga el ZIP, extráelo y abre ese archivo desde Studio. Los enlaces internos del entorno de desarrollo pueden no permitir descargas en todas las interfaces.
+- [Descargar proyecto completo en ZIP](https://github.com/SSJ-ARIEL/Robloxstudio/archive/refs/heads/main.zip).
+- [Descargar juego para Studio](https://github.com/SSJ-ARIEL/Robloxstudio/raw/refs/heads/main/downloads/ColorChaos.rbxlx).
+- **[Pasos concretos para publicar y activar compras](docs/PUBLICAR.md)**.
+- [Productos, beneficios e identificadores](docs/PRODUCTOS.md).
+- [Cómo actualizar sin rehacer el juego](docs/OPERACION.md).
 
-Juego cooperativo para Roblox escrito en Luau y organizado para Rojo. Una máquina ha perdido su energía cromática: los jugadores recuperan colores, activan mecanismos y rescatan chispas para repararla. Cada color tiene un nombre y un símbolo; las indicaciones no dependen únicamente del color.
+Extrae el ZIP, abre `downloads/ColorChaos.rbxlx` desde **File → Open from File** en Roblox Studio y publica desde tu cuenta. El mapa se genera cuando inicia el servidor. Para abrir y publicar el archivo no necesitas Rojo.
 
-Esta primera versión incluye un vestíbulo, partidas por rondas, tres desafíos, interfaz adaptable, monedas y victorias obtenidas jugando, y auras cosméticas que se consiguen con esas monedas. El escenario se construye mediante código cuando inicia el servidor. Se puede jugar solo y probar con varios jugadores.
+## Funciones incluidas
 
-El nombre es provisional. El código y los escenarios de esta versión se crean para este proyecto; eso no acredita que el nombre esté disponible ni que ninguna otra experiencia comparta mecánicas generales.
-
-## La primera prueba más rápida
-
-La entrega incluye `build/ColorChaos.rbxlx`. Si la interfaz de esta conversación permite descargar el archivo, descárgalo, ábrelo en Roblox Studio con **File → Open from File** y pulsa **Play**. Para esta primera prueba no necesitas instalar Rojo. El mapa aparece al iniciar la simulación.
-
-Para desarrollar y sincronizar cambios después, descarga también todos los archivos fuente y sigue los pasos siguientes.
-
-## Cómo se juega
-
-1. Espera en el vestíbulo a que empiece la siguiente partida.
-2. Observa las indicaciones de color y letra. Acércate a la estación correspondiente y usa su botón de interacción: **E** en computadora o el botón en pantalla en celular.
-3. Sigue las instrucciones del desafío y ayuda a tu equipo antes de que termine el tiempo.
-4. Contribuye a los objetivos para ganar monedas. Las victorias se obtienen al contribuir y sobrevivir a un desafío superado.
-
-Los desafíos son:
-
-| Desafío | Objetivo |
+| Sistema | Función |
 | --- | --- |
-| Puentes de memoria | Recuerda la secuencia, activa sus letras en orden para crear los puentes, cruza y repara el reactor de llegada. |
-| Reparación por relevos | Activa los nodos del mecanismo con el color que pide cada uno. |
-| Rescate de chispas | Crea el puente del color indicado, recoge la chispa de su isla y entrégala en el reactor. |
+| Rondas | Vestíbulo, cronómetro, rotación automática y resultados compartidos. |
+| Puentes de memoria | Observar cinco letras, activar su secuencia y llegar al reactor. |
+| Reparación en equipo | Activar ocho estaciones del color solicitado. |
+| Rescate cromático | Activar un puente, recuperar una chispa y entregarla. |
+| Progreso | Monedas, victorias, XP, niveles y tres misiones diarias gratuitas. |
+| Personalización | Siete auras con monedas, dos con estelas, y aura Prisma para propietarios VIP. |
+| Tienda Robux | Paquetes garantizados de 100, 400 y 1000 monedas; pase VIP cosmético. |
+| VIP Prisma | Aura de colores y título VIP; no concede victorias ni multiplicadores. |
+| Guardado | DataStore con bloqueo de sesión, guardado periódico y salida. |
+| Recibos | Crédito e ID guardados juntos; recuperación tras confirmaciones fallidas y rechazo de duplicados. |
+| Interfaz | Computadora, móvil, prompts de consola, ayuda y símbolos A/B/C/D junto a los colores. |
+| Recursos | Iconos de juego/productos/pase, banner ilustrado y SVG originales editables. |
 
-Quien entra durante una ronda espera en el vestíbulo hasta el siguiente inicio. Al caer, el personaje vuelve al vestíbulo. Los resultados y las recompensas se calculan en el servidor.
+Los jugadores que entran tarde o caen esperan la siguiente ronda. Las recompensas requieren colaborar. Las monedas también se obtienen jugando; no existen recompensas aleatorias pagadas ni compras que vendan la victoria.
 
-## Qué necesitas en tu computadora
+## Activación de ventas
 
-- Windows o macOS compatible con [Roblox Studio](https://create.roblox.com/).
-- Una cuenta de Roblox para probar y publicar desde Studio.
-- Una copia de esta carpeta, con `default.project.json` y `src/`.
-- [Rojo 7.6.1](https://github.com/rojo-rbx/rojo/releases/tag/v7.6.1).
-- El plugin de Rojo 7 en Studio, si quieres sincronización durante el desarrollo.
+El código de compras está implementado. Roblox debe crear **tres ProductId y un PassId bajo tu experiencia**; esos cuatro números se configuran en `src/shared/Config.luau`, sección `Config.Commerce`. Los ceros indican artículos sin activar. No son IDs ficticios ni compras gratuitas.
 
-GitHub guarda las versiones del proyecto. Rojo convierte los archivos en objetos de Roblox y los sincroniza con Studio. Studio ejecuta el juego y permite publicarlo en tu cuenta. Para conectarse por `localhost`, Rojo y Studio deben estar en la misma computadora; el servidor de esta nube no se conecta directamente a tu Studio.
+El precio se fija en Creator Dashboard, se consulta localmente y se confirma en el diálogo oficial de Roblox. El servidor entrega productos exclusivamente mediante `ProcessReceipt` después de confirmar la persistencia. Los eventos de cierre no entregan monedas. La propiedad VIP se consulta a Roblox.
 
-## 1. Obtén los archivos
+Las compras de productos se bloquean cuando el guardado no está disponible, hay una transacción pendiente, el saldo no tiene capacidad o el historial alcanza su límite de seguridad. Los recibos existentes se conservan. No borres productos ni registros con compras pendientes.
 
-El código ya está disponible en la rama **main** de [SSJ-ARIEL/Robloxstudio](https://github.com/SSJ-ARIEL/Robloxstudio). Abre el repositorio y usa **Code → Download ZIP**, o clónalo mediante GitHub Desktop. Extrae el ZIP si lo descargaste.
+Studio usa progreso temporal y desactiva compras de productos dependientes de DataStore. La facturación y persistencia reales requieren la experiencia publicada. No se han efectuado compras ni pruebas del motor desde esta nube.
 
-También puedes usar el paquete fuente `ColorChaos-source.zip` entregado con el proyecto. Debes tener `default.project.json`, `src/`, `tools/` y `tests/`, no solamente los scripts sueltos. Abre una terminal dentro de la carpeta que contiene `default.project.json`.
+## Rojo para futuras actualizaciones
 
-No ejecutes `rojo init`: este proyecto ya incluye su configuración.
-
-## 2. Instala Rojo
-
-La [guía oficial de instalación](https://rojo.space/docs/v7/getting-started/installation/) admite binarios publicados en GitHub y el gestor Rokit. Para este proyecto usamos la versión **7.6.1**.
-
-### Windows
-
-1. Descarga `rojo-7.6.1-windows-x86_64.zip` desde la publicación oficial de Rojo 7.6.1 y extráelo. Si Windows usa un procesador ARM, elige `windows-aarch64`.
-2. Coloca `rojo.exe` en una carpeta permanente, por ejemplo `C:\Tools\Rojo`.
-3. Busca **Editar las variables de entorno de esta cuenta** en Windows. Edita `Path`, agrega esa carpeta y guarda.
-4. Cierra y vuelve a abrir PowerShell. Desde la carpeta del proyecto, ejecuta:
+Rojo tiene un programa en tu computadora y un plugin en Studio. Para Windows, descarga [Rojo 7.6.1](https://github.com/rojo-rbx/rojo/releases/tag/v7.6.1), extrae `rojo.exe` y cópialo junto a `default.project.json`. Abre PowerShell en esa carpeta:
 
 ```powershell
-rojo --version
-rojo plugin install
+.\rojo.exe --version
+.\rojo.exe plugin install
+.\rojo.exe serve default.project.json
 ```
 
-El primer comando debe mostrar `Rojo 7.6.1`. El segundo instala el plugin local de esa versión; cierra Studio antes de ejecutarlo y vuelve a abrirlo después.
+Instala el plugin con Studio cerrado. Después abre tu experiencia existente, entra en **Plugins → Rojo** y conecta a **localhost:34872**. Mantén abierta la terminal y publica desde Studio después de sincronizar. Conserva primero los cuatro IDs en el archivo fuente; Rojo no debe reemplazarlos por ceros.
 
-### macOS
+En macOS puedes instalar el binario oficial apropiado para tu arquitectura y usar `rojo plugin install` y `rojo serve default.project.json` desde la carpeta del proyecto. La documentación oficial detalla la [instalación](https://rojo.space/docs/v7/getting-started/installation/).
 
-1. Descarga `rojo-7.6.1-macos-aarch64.zip` si tu Mac tiene Apple Silicon, o `rojo-7.6.1-macos-x86_64.zip` si tiene Intel, y extráelo.
-2. En Finder, crea la carpeta `Tools/Rojo` dentro de tu carpeta de usuario y coloca allí el ejecutable `rojo`.
-3. En Terminal, habilita el ejecutable y agrega esa carpeta a la búsqueda de comandos de la sesión:
+Una corrección actualiza los scripts de la misma experiencia. Conservando la identidad y `Config.DataStoreName`, no necesitas rehacer el juego ni borrar el progreso. GitHub guarda versiones del código; Roblox publica el contenido y administra servidores/pagos.
 
-```sh
-chmod +x "$HOME/Tools/Rojo/rojo"
-export PATH="$HOME/Tools/Rojo:$PATH"
-```
+## Validación para desarrollo
 
-4. Para conservar el comando en nuevas sesiones, agrega la línea `export PATH="$HOME/Tools/Rojo:$PATH"` una sola vez a tu archivo `~/.zshrc` si utilizas el shell predeterminado de macOS. Puedes continuar en la terminal actual sin cerrar la sesión.
-5. Entra en la carpeta del proyecto y ejecuta:
-
-```sh
-rojo --version
-rojo plugin install
-```
-
-El resultado esperado también es `Rojo 7.6.1`. Instala el plugin con Studio cerrado y vuelve a abrirlo después. Si macOS bloquea el ejecutable, revisa su procedencia y las opciones de **Privacidad y seguridad** para ese archivo descargado del proyecto oficial.
-
-La extensión de Rojo para VS Code es opcional; instalarla no agrega automáticamente el comando `rojo` al `PATH`.
-
-## 3. Abre el juego por primera vez
-
-### Windows / PowerShell
-
-```powershell
-New-Item -ItemType Directory -Force build | Out-Null
-rojo build default.project.json -o build/ColorChaos.rbxlx
-```
-
-### macOS / Terminal
-
-```sh
-mkdir -p build
-rojo build default.project.json -o build/ColorChaos.rbxlx
-```
-
-En Studio, usa **File → Open from File** y abre `build/ColorChaos.rbxlx`. Pulsa **Play** para iniciar el juego. El servidor genera el mapa al ejecutarse, por lo que no verás todo el escenario antes de iniciar la simulación.
-
-Si ya tienes un archivo `ColorChaos.rbxlx` entregado con esta versión, puedes abrirlo directamente para la primera prueba. Para conservar cambios de código, trabaja con la carpeta del proyecto y vuelve a compilar o usa la sincronización descrita a continuación.
-
-## 4. Conecta Rojo para trabajar
-
-1. Detén la prueba en Studio.
-2. Desde la carpeta del proyecto, ejecuta:
-
-```sh
-rojo serve default.project.json
-```
-
-3. Mantén abierta esa terminal. Rojo mostrará la dirección y el puerto; el puerto habitual es **34872**.
-4. En Studio, abre el plugin desde **Plugins → Rojo**. Conecta a **localhost**, puerto **34872**, o al puerto que indique la terminal.
-5. Revisa el cambio propuesto por el plugin y acepta la sincronización para este lugar de prueba.
-6. Edita los archivos de `src/` desde tu editor. Para probar los cambios con el mapa regenerado, detén y vuelve a iniciar **Play**.
-
-Los scripts administrados por Rojo deben editarse en los archivos del proyecto para que esos cambios se conserven en GitHub. La sincronización y la publicación son acciones distintas: después de probar una versión, publícala desde Studio.
-
-## 5. Prueba antes de publicar para todos
-
-Estas pruebas requieren Roblox Studio; una compilación satisfactoria en la nube no sustituye las pruebas del motor.
-
-- **Una persona:** completar los tres desafíos, verificar instrucciones, cronómetro, reinicio de rondas y recompensas.
-- **De dos a cuatro personas:** en las herramientas de pruebas de Studio, inicia un servidor local con varios clientes. Confirma que ven la misma ronda y que las acciones cooperativas funcionan.
-- **Entrada tardía:** agrega un cliente durante una ronda y verifica que espere en el vestíbulo. Debe poder participar cuando comience una ronda posterior.
-- **Caídas y reaparición:** cae del mapa; verifica el regreso al vestíbulo y que no se dupliquen las recompensas.
-- **Resultados:** verifica que las personas que solo esperaron en el vestíbulo no reciban premios de esa ronda y que no se repita el premio al terminar.
-- **Celular:** usa el emulador de dispositivos de Studio y, después, un celular real. Revisa los botones, textos, salto y control del personaje.
-- **Errores:** abre **Output / Salida** en Studio. Investiga errores rojos antes de hacer pública la experiencia.
-
-## 6. Publica una prueba privada y valida el guardado
-
-1. Detén la simulación y usa **File → Publish to Roblox**. Crea una experiencia de prueba en tu cuenta.
-2. En sus ajustes, conserva el acceso privado o restringido a tus colaboradores mientras haces las pruebas. Configura **Max Players / Máximo de jugadores = 12** para el lugar: el servidor de este juego admite hasta 12 participantes por ronda.
-3. Prueba esa experiencia publicada desde la aplicación de Roblox. Studio permite simular partidas; el cliente publicado permite comprobar el comportamiento real de red, dispositivos y guardado.
-4. Verifica las monedas, victorias y auras, sal, vuelve a entrar y comprueba su conservación. La interfaz indica si el guardado está activo o si el progreso solo corresponde a esa sesión.
-5. Antes de abrir el acceso público, revisa el nombre, la descripción, los iconos, las clasificaciones y los requisitos que Roblox muestre para publicar esa experiencia.
-
-El guardado se realiza desde el servidor y puede fallar por límites o indisponibilidad de Roblox. Esta versión desactiva las escrituras de DataStore cuando se ejecuta dentro de Studio: allí el progreso solo dura la sesión. Para comprobar la persistencia, usa el cliente de Roblox en una experiencia publicada de desarrollo. Mantén esa experiencia separada de producción y utiliza un nombre de DataStore distinto, configurado mediante `Config.DataStoreName` en `src/shared/Config.luau`.
-
-## 7. Guarda tus cambios en GitHub
-
-La opción gráfica es [GitHub Desktop](https://desktop.github.com/):
-
-1. Inicia sesión con la cuenta que tiene acceso a `SSJ-ARIEL/Robloxstudio`.
-2. Usa **File → Clone repository**, elige ese repositorio y clónalo a una carpeta local. Esta copia ya incluye el juego; no necesitas volver a subir los archivos de la entrega.
-3. Inicia `rojo serve` desde esa carpeta y edita allí los archivos fuente. Conserva la carpeta `.git` creada por GitHub Desktop.
-4. Para guardar cambios, revísalos en GitHub Desktop, escribe un resumen de la actualización y elige **Commit to main → Push origin**.
-5. Abre el repositorio en GitHub y comprueba que los cambios aparecen en `main`. Para obtener actualizaciones antes de trabajar, usa **Fetch origin / Pull origin** en GitHub Desktop.
-
-Los archivos `.tools/` y `build/` se excluyen mediante `.gitignore`: el proyecto fuente permite volver a generar el lugar. Subir código a GitHub no publica la experiencia en Roblox; eso se hace desde Studio.
-
-## Monetización de esta versión
-
-No hay compras de Robux activas ni identificadores de productos inventados. Las monedas se obtienen jugando y permiten conseguir auras cosméticas. Primero necesitamos validar que el juego funciona y que los jugadores quieren volver.
-
-Para una actualización se pueden diseñar cosméticos, gestos o aspectos de herramientas con precios y beneficios claros. Activar ventas requiere crear los productos en tu cuenta de Roblox, configurar sus identificadores reales y comprobar el procesamiento de recibos en el servidor. Los ingresos y la disponibilidad de DevEx dependen de resultados y requisitos de Roblox; esta versión no promete ganancias.
-
-## Archivos principales
-
-| Archivo | Responsabilidad |
-| --- | --- |
-| `default.project.json` | Asigna archivos del proyecto a los servicios de Roblox. |
-| `src/shared/Config.luau` | Colores, reglas, tiempos y configuración compartida. |
-| `src/server/` | Escenarios, rondas, validación de acciones, recompensas y guardado. |
-| `src/client/` | Interfaz y controles del jugador. |
-| `build/ColorChaos.rbxlx` | Lugar generado para abrir en Studio. |
-
-Para futuras tareas, utiliza esta copia del proyecto: cada tarea en la nube ya tiene un entorno aislado y no necesita un `git worktree` adicional.
-
-## Validación en la nube / Linux
-
-Esta sección es para el entorno de nube. **En Windows y macOS no necesitas ejecutar estos scripts Bash**: utiliza la instalación de Rojo y los comandos de los pasos 2–4.
-
-Los helpers son para **Linux x86_64**, con `bash`, `curl`, `unzip`, `sha256sum` y Python 3. Instalan Rojo 7.6.1 y Luau 0.694 desde sus publicaciones oficiales y verifican las sumas SHA-256. Desde la carpeta del proyecto:
-
-```sh
-bash tools/setup.sh
-bash tools/validate.sh
-```
-
-La instalación local queda en `.tools/`. La validación compila los archivos Luau, ejecuta 20 pruebas de reglas, simula la lógica del servidor con servicios y jugadores ficticios y genera `build/ColorChaos.rbxlx`. La simulación comprueba las tres rondas y las recompensas, incluyendo entrada tardía y recuperación de una chispa. No ejecuta el motor de Roblox ni valida física, red, apariencia o disponibilidad real de DataStore.
-
-En el entorno preparado para este proyecto, las herramientas también pueden estar fuera del repositorio. Usa la misma ruta en ambos comandos:
+Usa el checkout existente; cada tarea de nube ya está aislada y no requiere un worktree adicional. Desde el proyecto, en Linux x86_64 con bash, curl, unzip, sha256sum y Python 3:
 
 ```sh
 COLOR_CHAOS_TOOLS_DIR=/workspace/.tools/color-chaos bash tools/setup.sh
 COLOR_CHAOS_TOOLS_DIR=/workspace/.tools/color-chaos bash tools/validate.sh
 ```
 
-## Si algo falla
+La instalación utiliza publicaciones oficiales HTTPS y SHA-256 fijado. Ejecuta instalación y validación en ese orden. Se compilan 12 archivos Luau y se ejecutan 200 comprobaciones: 20 de reglas, 29 de misiones, 25 de registro de recibos, 91 de comercio y 35 del servidor integrado con servicios simulados. Rojo genera `build/ColorChaos.rbxlx`.
 
-| Problema | Qué revisar |
-| --- | --- |
-| La terminal no encuentra `rojo` | El ejecutable debe estar en el `PATH`; vuelve a abrir la terminal después de cambiarlo. |
-| El plugin no conecta | Studio y Rojo deben estar en la misma computadora; confirma que `rojo serve` sigue abierto y usa el puerto que imprime. |
-| El editor parece vacío | Pulsa Play: los escenarios se generan durante la ejecución. |
-| Cambié código y el mapa sigue igual | Detén Play, confirma la sincronización y vuelve a iniciar la prueba. |
-| No se conserva el progreso en Studio | Esta versión desactiva el guardado en Studio; compruébalo desde el cliente de Roblox en una experiencia publicada de desarrollo. |
-| Error de guardado en Output | Comprueba la configuración, el estado del servicio y los límites de DataStore; conserva la prueba separada de producción. |
+Las simulaciones no ejecutan física, renderizado, red, DataStore ni facturación real de Roblox. Consulta [el estado de la entrega](docs/ESTADO.md) para distinguir código entregado, configuración pendiente y operaciones no verificadas. El generador opcional de gráficos `tools/make-icons.py` requiere Pillow; no hace falta ejecutarlo para publicar porque los PNG ya están incluidos.
 
-Fuentes: [Rojo: instalación](https://rojo.space/docs/v7/getting-started/installation/), [Rojo: construir y sincronizar](https://rojo.space/docs/v7/getting-started/new-game/), [Roblox: pruebas en Studio](https://create.roblox.com/docs/studio/testing-modes) y [Roblox: DataStore](https://create.roblox.com/docs/cloud-services/data-stores).
+## Archivos
+
+- `src/server/Main.server.luau`: mapas, rondas, persistencia y validación.
+- `src/server/Commerce.luau`: compras oficiales y verificación VIP.
+- `src/shared/`: configuración, reglas, misiones y registro de recibos.
+- `src/client/Main.client.luau`: interfaz y precios locales.
+- `assets/`: PNG y SVG originales para el Dashboard.
+- `downloads/ColorChaos.rbxlx`: juego generado entregado.
+- `docs/`: publicación, catálogo, mantenimiento y estado.
+
+Las mecánicas de género pueden coincidir con otras experiencias. No se acredita exclusividad del nombre ni de esas mecánicas, y no se garantizan jugadores o ingresos.

@@ -3,3 +3,6 @@ build/
 *.rbxl.lock
 *.rbxlx.lock
 .DS_Store
+/rojo.exe
+/rojo
+/rojo-*.zip

@@ -37,3 +37,13 @@ El usuario eligió Color Chaos y autorizó implementar el juego, solicitando una
 Se implementó una primera versión con mapa generado, vestíbulo, tres desafíos (secuencia de puentes, estaciones de reparación y rescate de chispas), interfaz para distintos dispositivos, monedas y victorias, auras cosméticas obtenidas jugando y persistencia de servidor con bloqueo de sesión. Las compras con Robux están desactivadas hasta disponer de productos reales y probar recibos; no existe garantía de ingresos.
 
 Rojo 7.6.1 y Luau 0.694 están disponibles con instalación verificada y repetible. La compilación y las pruebas de reglas se pueden ejecutar en Linux; el motor, los controles y la persistencia publicada deben validarse en Studio y Roblox. Consultar README.md para la entrega y los pasos. No afirmar que existe validación real multijugador, que el nombre está libre ni que es un lanzamiento comercial validado.
+
+## Ampliación a entrega 1.0.0
+
+El usuario pidió completar monetización y documentación, y que el asistente haga las comprobaciones técnicas sin exigirle rehacer el juego ni escribir pruebas. Se añadieron productos garantizados de 100, 400 y 1000 monedas, pase cosmético VIP Prisma (aura y título), tres misiones diarias gratuitas, XP y niveles. Los beneficios comprados no dan victorias ni acceso a recompensas aleatorias pagadas. Se necesitan los cuatro IDs públicos creados en la cuenta del usuario para activar ventas; no se inventan ni se solicitan credenciales.
+
+Se implementó ProcessReceipt con crédito e identificador en el mismo UpdateAsync y recuperación de confirmaciones fallidas; los prompts no prueban un cobro. La propiedad VIP se consulta a Roblox. La interfaz consulta precios localmente y deja la confirmación final al diálogo nativo. Los recursos gráficos de assets/ son propios, con fuentes SVG y PNG; el banner es una ilustración abstracta, no una captura.
+
+La entrega se conserva en GitHub/main y `downloads/ColorChaos.rbxlx`. Los enlaces internos no fueron descargables en la interfaz del usuario: entregar enlaces HTTPS de GitHub. Guías concretas en `docs/PUBLICAR.md`, `docs/PRODUCTOS.md`, `docs/OPERACION.md`. Corregir y publicar sobre la misma experiencia mantiene su identidad; conservar DataStoreName y claves para mantener progreso. No confundir entrega de código, activación de productos, publicación y validación real del motor.
+
+El catálogo ampliado contiene siete auras obtenibles con monedas, incluidas Océano y Cometa con estelas; Prisma VIP es la octava opción. La entrega pasó 200 comprobaciones automatizadas (incluidas 35 del servidor integrado con servicios simulados). Esto no acredita pruebas de Studio ni cobros reales.

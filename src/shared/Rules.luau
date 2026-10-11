@@ -25,11 +25,17 @@ function Rules.cleanProfile(raw, paletteCount)
 	return profile
 end
 
-function Rules.purchase(profile, index, palettes)
+function Rules.purchase(profile, index, palettes, vip)
 	if type(index) ~= "number" or index % 1 ~= 0 or not palettes[index] then
 		return false, "Selección inválida."
 	end
 	local key = tostring(index)
+	if palettes[index].Access == "VIP" then
+		if vip ~= true then return false, "Esta aura requiere el pase VIP Prisma." end
+		profile.Owned[key] = true
+		profile.Selected = index
+		return true, "Aura VIP equipada."
+	end
 	if not profile.Owned[key] then
 		local cost = palettes[index].Cost
 		if profile.Coins < cost then

@@ -5,8 +5,12 @@ local DataStoreService = game:GetService("DataStoreService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local Debris = game:GetService("Debris")
+local MarketplaceService = game:GetService("MarketplaceService")
 local Config = require(ReplicatedStorage.ColorChaos.Config)
 local Rules = require(ReplicatedStorage.ColorChaos.Rules)
+local Progression = require(ReplicatedStorage.ColorChaos.Progression)
+local Ledger = require(ReplicatedStorage.ColorChaos.ProfileLedger)
+local Commerce = require(script.Parent.Commerce)
 
 local events = Instance.new("Folder")
 events.Name = "Remotes"
@@ -29,6 +33,14 @@ local sessionId = game.JobId .. HttpService:GenerateGUID(false)
 local closing = false
 local savingEnabled = not RunService:IsStudio()
 local random = Random.new()
+local commerce
+
+local function cleanProfile(raw)
+	local data = Rules.cleanProfile(raw, #Config.Palettes)
+	data.Receipts = Ledger.cleanReceipts(type(raw) == "table" and raw.Receipts or nil)
+	data.Progress = Progression.clean(type(raw) == "table" and raw.Progress or nil, os.time(), Config)
+	return data
+end
 
 local function personal(player, extra)
 	local record = profiles[player]
@@ -37,11 +49,13 @@ local function personal(player, extra)
 	payload.Alive = participants[player] ~= nil and participants[player].Alive
 	if record then
 		payload.Profile = { Coins = record.Data.Coins, Wins = record.Data.Wins,
-			Selected = record.Data.Selected, Owned = record.Data.Owned }
+			Selected = record.Data.Selected, Owned = record.Data.Owned, VIP = record.VIP == true }
+		payload.Progression = Progression.view(record.Data.Progress, os.time(), Config)
 		payload.Persistence = record.Writable and (record.LastSaveFailed and "ERROR DE GUARDADO: REINTENTANDO" or "GUARDADO ACTIVO") or "PROGRESO DE ESTA SESIÓN"
 	else
 		payload.Persistence = "CARGANDO PROGRESO"
 	end
+	payload.Commerce = commerce and commerce.getCatalog(player) or {}
 	if extra then
 		for key, value in pairs(extra) do payload[key] = value end
 	end
@@ -53,7 +67,8 @@ local function broadcast()
 end
 
 local function snapshot(data)
-	return { Coins = data.Coins, Wins = data.Wins, Selected = data.Selected, Owned = table.clone(data.Owned) }
+	return { Coins = data.Coins, Wins = data.Wins, Selected = data.Selected, Owned = table.clone(data.Owned),
+		Receipts = table.clone(data.Receipts), Progress = Progression.clean(data.Progress, os.time(), Config) }
 end
 
 local function save(player, release)
@@ -65,18 +80,30 @@ local function save(player, release)
 	record.Saving = true
 	local data = snapshot(record.Data)
 	local updatedRevision = record.Revision
-	local ownsLock = false
+	local ownsLock, committed = false, nil
 	local ok = pcall(function()
 		store:UpdateAsync("Player_" .. player.UserId, function(old)
-			ownsLock = false
+			ownsLock, committed = false, nil
 			if type(old) ~= "table" or old.Session ~= sessionId then return nil end
+			local merged = Ledger.merge(data, old.Data, Config.MaxCoins)
+			if not merged then return nil end
 			ownsLock = true
-			local envelope = { Data = data, Session = sessionId, LeaseUntil = os.time() + 240 }
+			committed = merged
+			local envelope = { Data = merged, Session = sessionId, LeaseUntil = os.time() + 240 }
 			if release then envelope.Session = nil; envelope.LeaseUntil = nil end
 			return envelope
 		end)
 	end)
 	if ok and ownsLock then
+		local recovered = Ledger.reconcile(record.Data, committed, Config.MaxCoins)
+		if recovered == nil then
+			record.LastSaveFailed = true
+			record.Saving = false
+			return
+		end
+		if recovered and recovered > 0 then record.Revision += 1 end
+		record.PendingPaid = nil
+		record.UncertainReceipt = nil
 		record.SavedRevision = updatedRevision
 		record.LastSaveFailed = false
 	else
@@ -105,11 +132,119 @@ local function cosmetic(player)
 	local effect = Instance.new("Highlight")
 	effect.Name = "ChromaticAura"
 	effect.FillTransparency = 1
-	effect.OutlineColor = Config.Palettes[record.Data.Selected].Color
+	local palette = Config.Palettes[record.Data.Selected]
+	if palette.Access == "VIP" and record.VIP ~= true then palette = Config.Palettes[1] end
+	effect.OutlineColor = palette.Color
 	effect.OutlineTransparency = 0.2
 	effect.DepthMode = Enum.HighlightDepthMode.Occluded
 	effect.Parent = character
+	local r = character:FindFirstChild("HumanoidRootPart")
+	if r then
+		for _, name in ipairs({ "ChromaticTrail", "TrailStart", "TrailEnd" }) do
+			local oldTrail = r:FindFirstChild(name)
+			if oldTrail then oldTrail:Destroy() end
+		end
+		if palette.Trail then
+			local a, b = Instance.new("Attachment"), Instance.new("Attachment")
+			a.Name, a.Position, a.Parent = "TrailStart", Vector3.new(-0.9, -0.8, 0), r
+			b.Name, b.Position, b.Parent = "TrailEnd", Vector3.new(0.9, -0.8, 0), r
+			local trail = Instance.new("Trail")
+			trail.Name, trail.Attachment0, trail.Attachment1 = "ChromaticTrail", a, b
+			trail.Color, trail.Lifetime = ColorSequence.new(palette.Color), 0.45
+			trail.FaceCamera, trail.LightEmission, trail.MinLength = true, 0.8, 0.1
+			trail.Parent = r
+		end
+	end
+	local head = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+	if head then
+		local oldTitle = head:FindFirstChild("VIPTitle")
+		if oldTitle then oldTitle:Destroy() end
+		if record.VIP == true then
+			local tag = Instance.new("BillboardGui")
+			tag.Name, tag.Size = "VIPTitle", UDim2.fromOffset(130, 32)
+			tag.StudsOffset, tag.MaxDistance = Vector3.new(0, 3.5, 0), 80
+			tag.Parent = head
+			local t = Instance.new("TextLabel")
+			t.Size, t.BackgroundTransparency = UDim2.fromScale(1, 1), 1
+			t.Text, t.TextColor3, t.TextScaled = "VIP PRISMA", Config.Palettes[5].Color, true
+			t.Font, t.Parent = Enum.Font.GothamBold, tag
+		end
+	end
+	if palette.Access == "VIP" and record.VIP == true then
+		task.spawn(function()
+			local index = 1
+			while effect.Parent and character.Parent do
+				effect.OutlineColor = Config.Colors[index].Color
+				index = index % #Config.Colors + 1
+				task.wait(1.5)
+			end
+		end)
+	end
 end
+
+local function persistentGrant(player, receipt, product)
+	local record = profiles[player]
+	if not record or not record.Writable or record.Leaving then return false end
+	while record.Saving do task.wait(0.1) end
+	if profiles[player] ~= record or not record.Writable or record.Leaving then return false end
+	if record.UncertainReceipt and record.UncertainReceipt ~= receipt.PurchaseId then return false end
+	record.Saving = true
+	record.PendingPaid = product.Coins
+	local base = snapshot(record.Data)
+	local committed, newlyGranted, lockLost = nil, false, false
+	local ok = pcall(function()
+		store:UpdateAsync("Player_" .. player.UserId, function(old)
+			committed, newlyGranted, lockLost = nil, false, false
+			if type(old) ~= "table" or old.Session ~= sessionId then lockLost = true; return nil end
+			local receipts = Ledger.cleanReceipts(type(old.Data) == "table" and old.Data.Receipts or nil)
+			if not receipts[receipt.PurchaseId] then
+				local count = 0
+				for _ in pairs(receipts) do count += 1 end
+				if count >= Config.MaxReceipts then return nil end
+			end
+			local updated, isNew = Ledger.grant(base, old.Data, receipt.PurchaseId, product.Coins, Config.MaxCoins)
+			if not updated then return nil end
+			committed, newlyGranted = updated, isNew
+			return { Data = updated, Session = sessionId, LeaseUntil = os.time() + 240 }
+		end)
+	end)
+	local acknowledged = false
+	if ok and committed then
+		local recovered = Ledger.reconcile(record.Data, committed, Config.MaxCoins)
+		if recovered ~= nil then
+			record.Revision += 1
+			record.LastSaveFailed = false
+			record.UncertainReceipt, record.PendingPaid = nil, nil
+			acknowledged = true
+		end
+	else
+		record.LastSaveFailed = true
+		record.UncertainReceipt = receipt.PurchaseId
+		if lockLost then record.Writable = false end
+	end
+	record.Saving = false
+	if not acknowledged then
+		record.LastSaveFailed = true
+		record.UncertainReceipt = receipt.PurchaseId
+		task.delay(2, function()
+			if profiles[player] == record and record.Writable and not record.Leaving then
+				save(player, false)
+				stats(player)
+				if player.Parent then personal(player) end
+			end
+		end)
+		return false
+	end
+	return true, newlyGranted and ("Compra entregada: +" .. product.Coins .. " monedas.") or ""
+end
+
+commerce = Commerce.new({
+	Config = Config, Players = Players, MarketplaceService = MarketplaceService,
+	PersistentGrant = persistentGrant, GetProfile = function(player) return profiles[player] end,
+	Notify = function(player, message) if player.Parent then personal(player, { Toast = message }) end end,
+	Refresh = function(player) stats(player); cosmetic(player); if player.Parent then personal(player) end end,
+})
+commerce.start()
 
 local world = Instance.new("Folder")
 world.Name = "ColorChaosWorld"
@@ -158,7 +293,7 @@ label(part(world, "Título", Vector3.new(1, 1, 1), Vector3.new(0, 17, 168)), "CO
 local instructions = part(world, "Instrucciones", Vector3.new(1, 1, 1), Vector3.new(-27, 9, 144))
 label(instructions, "1. Espera la ronda\n2. Sigue letras y colores\n3. Coopera y gana monedas")
 local shop = part(world, "Tienda de auras", Vector3.new(8, 4, 8), Vector3.new(27, 8, 144), Config.Palettes[4].Color)
-label(shop, "AURAS\nSolo monedas ganadas jugando")
+label(shop, "TIENDA\nAuras, monedas y VIP")
 local shopPrompt = Instance.new("ProximityPrompt")
 shopPrompt.ActionText, shopPrompt.ObjectText = "Abrir", "Auras"
 shopPrompt.RequiresLineOfSight = false
@@ -212,6 +347,20 @@ local function progress(round, amount)
 	broadcast()
 end
 
+local function contribute(player)
+	local entry = participants[player]
+	entry.Contributed = true
+	entry.Actions = (entry.Actions or 0) + 1
+end
+
+local function freeCoins(record, amount)
+	-- A pending paid grant reserves capacity; never reduce an existing balance.
+	local room = math.max(0, Config.MaxCoins - (record.PendingPaid or 0) - record.Data.Coins)
+	local granted = math.min(amount, room)
+	record.Data.Coins += granted
+	return granted
+end
+
 local function newArena(mode)
 	local model = Instance.new("Model")
 	model.Name = "Ronda"
@@ -241,7 +390,7 @@ local function memory(round)
 	local goalPrompt = prompt(goal, "Reparar reactor", function(player)
 		if not valid(player, goal, round) then return end
 		if round.Step == #round.Sequence then
-			participants[player].Contributed = true
+			contribute(player)
 			progress(round, 1)
 		end
 	end)
@@ -276,7 +425,7 @@ local function memory(round)
 					round.Replaying = false; broadcast()
 				end)
 			else
-				participants[player].Contributed = true
+				contribute(player)
 				round.Step += 1
 				local bridge = part(round.Model, "Puente " .. round.Step, Vector3.new(18, 2, 12), Vector3.new(0, 20.5, 23 - (round.Step - 1) * 13), color.Color)
 				table.insert(round.Bridges, bridge)
@@ -307,7 +456,7 @@ local function relay(round)
 				return
 			end
 			round.Cooldown = true
-			participants[player].Contributed = true
+			contribute(player)
 			core.Color = color.Color
 			progress(round, 1)
 			local nextTarget = random:NextInteger(1, 3)
@@ -339,7 +488,7 @@ local function rescue(round)
 		prompt(spark, "Recoger chispa", function(player)
 			if not valid(player, spark, round) or not round.Active or round.Target ~= i or round.Carrier then return end
 			round.Carrier = player
-			participants[player].Contributed = true
+			contribute(player)
 			spark.Transparency = 1
 			local indicator = Instance.new("BillboardGui")
 			indicator.Name, indicator.Size = "CarriedSpark", UDim2.fromOffset(120, 40)
@@ -358,7 +507,7 @@ local function rescue(round)
 		label(node, color.Symbol .. " · " .. color.Name, Vector3.new(0, 3, 0), true)
 		prompt(node, "Crear puente", function(player)
 			if not valid(player, node, round) or round.Active or round.Target ~= i then return end
-			participants[player].Contributed = true
+			contribute(player)
 			round.Active = true
 			round.Bridge = part(round.Model, "Puente de rescate", Vector3.new(12, 2, 31), Vector3.new(x, 20.5, -55), color.Color)
 			state.Message = "Puente listo. Recoge la chispa " .. color.Symbol .. " y vuelve al reactor."
@@ -376,7 +525,7 @@ local function rescue(round)
 	end
 	prompt(core, "Entregar chispa", function(player)
 		if not valid(player, core, round) or round.Carrier ~= player then return end
-		participants[player].Contributed = true
+		contribute(player)
 		round.ResetCarrier()
 		progress(round, 1)
 		if round.Bridge then round.Bridge:Destroy() end
@@ -421,7 +570,7 @@ local function onPlayer(player)
 	initializing[player] = true
 	player.CharacterAdded:Connect(function(character) onCharacter(player, character) end)
 	if player.Character then task.spawn(onCharacter, player, player.Character) end
-	local data = Rules.cleanProfile(nil, #Config.Palettes)
+	local data = cleanProfile(nil)
 	local writable = false
 	if savingEnabled then
 		local acquired, loaded = false, nil
@@ -430,7 +579,7 @@ local function onPlayer(player)
 				store:UpdateAsync("Player_" .. player.UserId, function(old)
 					acquired, loaded = false, nil
 					if type(old) == "table" and old.Session and old.Session ~= sessionId and (tonumber(old.LeaseUntil) or 0) > os.time() then return nil end
-					loaded = Rules.cleanProfile(type(old) == "table" and (old.Data or old) or nil, #Config.Palettes)
+					loaded = cleanProfile(type(old) == "table" and (old.Data or old) or nil)
 					acquired = true
 					return { Data = snapshot(loaded), Session = sessionId, LeaseUntil = os.time() + 240 }
 				end)
@@ -449,11 +598,13 @@ local function onPlayer(player)
 		value.Name, value.Parent = name, leaderboard
 	end
 	stats(player); cosmetic(player); personal(player)
+	task.spawn(function() commerce.refreshPasses(player); if player.Parent then personal(player) end end)
 end
 
 Players.PlayerAdded:Connect(onPlayer)
 for _, player in ipairs(Players:GetPlayers()) do task.spawn(onPlayer, player) end
 Players.PlayerRemoving:Connect(function(player)
+	if profiles[player] then profiles[player].Leaving = true end
 	eliminate(player)
 	participants[player] = nil
 	save(player, true)
@@ -466,8 +617,28 @@ actionEvent.OnServerEvent:Connect(function(player, action, value)
 	lastActions[player] = now
 	if action == "Sync" then personal(player); return end
 	local record = profiles[player]
-	if action ~= "Palette" or not record then return end
-	local ok, message = Rules.purchase(record.Data, value, Config.Palettes)
+	if not record or record.Leaving then return end
+	if action == "Purchase" then
+		if type(value) == "table" then commerce.requestPurchase(player, value.Kind, value.Key) end
+		return
+	end
+	if record.Saving then personal(player, { Toast = "Un momento: estamos guardando tu progreso." }); return end
+	if action == "ClaimMission" then
+		for _, mission in ipairs(Config.DailyMissions) do
+			if mission.Key == value and record.Data.Coins + (record.PendingPaid or 0) + mission.Reward > Config.MaxCoins then
+				personal(player, { Toast = "Gasta algunas monedas antes de reclamar esta recompensa." }); return
+			end
+		end
+		local reward, message = Progression.claim(record.Data.Progress, value, os.time(), Config)
+		if reward > 0 then
+			freeCoins(record, reward)
+			record.Revision += 1
+			stats(player)
+		end
+		personal(player, { Toast = message }); return
+	end
+	if action ~= "Palette" then return end
+	local ok, message = Rules.purchase(record.Data, value, Config.Palettes, record.VIP)
 	if ok then
 		record.Revision += 1
 		stats(player); cosmetic(player)
@@ -557,7 +728,11 @@ while not closing do
 		local record = profiles[player]
 		if record then
 			local coins, wins = Rules.reward(round.Success, entry.Contributed, entry.Alive, Config.WinCoins, Config.ParticipationCoins)
-			record.Data.Coins += coins; record.Data.Wins += wins; record.Revision += 1
+			coins = freeCoins(record, coins)
+			record.Data.Wins += wins; record.Revision += 1
+			if entry.Contributed then
+				Progression.record(record.Data.Progress, { Rounds = 1, Actions = entry.Actions or 0, Wins = wins }, os.time(), Config)
+			end
 			stats(player)
 			personal(player, { Toast = coins > 0 and ("+" .. coins .. " monedas por colaborar") or "Colabora en un objetivo para ganar monedas." })
 		end
