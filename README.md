@@ -1,5 +1,12 @@
 # Color Chaos
 
+## Descargas desde GitHub
+
+- [Juego para abrir en Roblox Studio](https://github.com/SSJ-ARIEL/Robloxstudio/raw/refs/heads/main/downloads/ColorChaos.rbxlx).
+- [Proyecto completo en ZIP](https://github.com/SSJ-ARIEL/Robloxstudio/archive/refs/heads/main.zip).
+
+El ZIP incluye `downloads/ColorChaos.rbxlx`. Si el navegador muestra el archivo como texto en lugar de descargarlo, descarga el ZIP, extráelo y abre ese archivo desde Studio. Los enlaces internos del entorno de desarrollo pueden no permitir descargas en todas las interfaces.
+
 Juego cooperativo para Roblox escrito en Luau y organizado para Rojo. Una máquina ha perdido su energía cromática: los jugadores recuperan colores, activan mecanismos y rescatan chispas para repararla. Cada color tiene un nombre y un símbolo; las indicaciones no dependen únicamente del color.
 
 Esta primera versión incluye un vestíbulo, partidas por rondas, tres desafíos, interfaz adaptable, monedas y victorias obtenidas jugando, y auras cosméticas que se consiguen con esas monedas. El escenario se construye mediante código cuando inicia el servidor. Se puede jugar solo y probar con varios jugadores.

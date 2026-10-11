@@ -1,0 +1,1009 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <Color3 name="Ambient">
+        <R>0.35</R>
+        <G>0.4</G>
+        <B>0.5</B>
+      </Color3>
+      <float name="Brightness">2</float>
+      <float name="ClockTime">16</float>
+      <Color3 name="OutdoorAmbient">
+        <R>0.55</R>
+        <G>0.55</G>
+        <B>0.65</B>
+      </Color3>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="2">
+      <Properties>
+        <string name="Name">ColorChaos</string>
+      </Properties>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">Config</string>
+          <string name="Source"><![CDATA[-- Configuration shared by the authoritative server and presentation client.
+local Config = {}
+
+Config.Intermission = 16
+Config.RoundSeconds = 100
+Config.ResultSeconds = 9
+Config.MinimumPlayers = 1
+Config.MaxParticipants = 12
+Config.DataStoreName = "ColorChaos_Player_v1"
+Config.SaveInterval = 75
+Config.WinCoins = 35
+Config.ParticipationCoins = 10
+Config.InteractionDistance = 13
+Config.Colors = {
+	{ Name = "AZUL", Symbol = "A", Color = Color3.fromRGB(55, 155, 255) },
+	{ Name = "AMARILLO", Symbol = "B", Color = Color3.fromRGB(255, 214, 66) },
+	{ Name = "VERDE", Symbol = "C", Color = Color3.fromRGB(79, 224, 145) },
+	{ Name = "ROJO", Symbol = "D", Color = Color3.fromRGB(255, 96, 106) },
+}
+Config.Palettes = {
+	{ Name = "CLÁSICA", Cost = 0, Color = Color3.fromRGB(55, 155, 255) },
+	{ Name = "MENTA", Cost = 80, Color = Color3.fromRGB(79, 224, 145) },
+	{ Name = "SOLAR", Cost = 150, Color = Color3.fromRGB(255, 214, 66) },
+	{ Name = "ROSADA", Cost = 220, Color = Color3.fromRGB(255, 115, 205) },
+}
+Config.Modes = {
+	{ Id = "memory", Name = "PUENTES DE MEMORIA", Hint = "Mira la secuencia y activa sus letras en orden. Cada acierto crea un puente." },
+	{ Id = "relay", Name = "REPARACIÓN EN EQUIPO", Hint = "Busca el color indicado y repara su estación. Todos comparten el objetivo." },
+	{ Id = "rescue", Name = "RESCATE CROMÁTICO", Hint = "Activa el color indicado para crear un camino. Recoge su chispa y llévala al reactor." },
+}
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">Rules</string>
+          <string name="Source"><![CDATA[-- Pure rules: no Roblox services, random state or client-provided scores.
+local Rules = {}
+
+function Rules.cleanProfile(raw, paletteCount)
+	local profile = { Coins = 0, Wins = 0, Selected = 1, Owned = { ["1"] = true } }
+	if type(raw) ~= "table" then
+		return profile
+	end
+	for _, key in ipairs({ "Coins", "Wins" }) do
+		local value = raw[key]
+		if type(value) == "number" and value == value and value > 0 and value < math.huge then
+			profile[key] = math.min(math.floor(value), 100000000)
+		end
+	end
+	if type(raw.Owned) == "table" then
+		for i = 1, paletteCount do
+			if raw.Owned[tostring(i)] == true then
+				profile.Owned[tostring(i)] = true
+			end
+		end
+	end
+	if type(raw.Selected) == "number" and raw.Selected % 1 == 0 and profile.Owned[tostring(raw.Selected)] then
+		profile.Selected = raw.Selected
+	end
+	return profile
+end
+
+function Rules.purchase(profile, index, palettes)
+	if type(index) ~= "number" or index % 1 ~= 0 or not palettes[index] then
+		return false, "Selección inválida."
+	end
+	local key = tostring(index)
+	if not profile.Owned[key] then
+		local cost = palettes[index].Cost
+		if profile.Coins < cost then
+			return false, "Necesitas más monedas. Se consiguen jugando."
+		end
+		profile.Coins -= cost
+		profile.Owned[key] = true
+	end
+	profile.Selected = index
+	return true, "Color equipado."
+end
+
+function Rules.reward(success, contributed, alive, winCoins, participationCoins)
+	if not contributed then
+		return 0, 0
+	end
+	if success and alive then
+		return winCoins, 1
+	end
+	return participationCoins, 0
+end
+
+return Rules
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="5">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="6">
+      <Properties>
+        <string name="Name">ColorChaosServer</string>
+      </Properties>
+      <Item class="Script" referent="7">
+        <Properties>
+          <string name="Name">Main</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[-- Color Chaos: all objectives, purchases and rewards are server-authoritative.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local Debris = game:GetService("Debris")
+local Config = require(ReplicatedStorage.ColorChaos.Config)
+local Rules = require(ReplicatedStorage.ColorChaos.Rules)
+
+local events = Instance.new("Folder")
+events.Name = "Remotes"
+events.Parent = ReplicatedStorage.ColorChaos
+local stateEvent = Instance.new("RemoteEvent")
+stateEvent.Name = "State"
+stateEvent.Parent = events
+local actionEvent = Instance.new("RemoteEvent")
+actionEvent.Name = "Action"
+actionEvent.Parent = events
+
+local profiles = {}
+local participants = {}
+local lastActions = {}
+local initializing = {}
+local currentRound = nil
+local state = { Phase = "LOBBY", Message = "Preparando el reactor...", Seconds = 0, Progress = 0, Total = 0 }
+local store = DataStoreService:GetDataStore(Config.DataStoreName)
+local sessionId = game.JobId .. HttpService:GenerateGUID(false)
+local closing = false
+local savingEnabled = not RunService:IsStudio()
+local random = Random.new()
+
+local function personal(player, extra)
+	local record = profiles[player]
+	local payload = table.clone(state)
+	payload.Participating = participants[player] ~= nil
+	payload.Alive = participants[player] ~= nil and participants[player].Alive
+	if record then
+		payload.Profile = { Coins = record.Data.Coins, Wins = record.Data.Wins,
+			Selected = record.Data.Selected, Owned = record.Data.Owned }
+		payload.Persistence = record.Writable and (record.LastSaveFailed and "ERROR DE GUARDADO: REINTENTANDO" or "GUARDADO ACTIVO") or "PROGRESO DE ESTA SESIÓN"
+	else
+		payload.Persistence = "CARGANDO PROGRESO"
+	end
+	if extra then
+		for key, value in pairs(extra) do payload[key] = value end
+	end
+	stateEvent:FireClient(player, payload)
+end
+
+local function broadcast()
+	for _, player in ipairs(Players:GetPlayers()) do personal(player) end
+end
+
+local function snapshot(data)
+	return { Coins = data.Coins, Wins = data.Wins, Selected = data.Selected, Owned = table.clone(data.Owned) }
+end
+
+local function save(player, release)
+	local record = profiles[player]
+	if not record or not record.Writable then return end
+	-- Serialize saves, including departure saves, to preserve the most recent state.
+	while record.Saving do task.wait(0.1) end
+	if not record.Writable then return end
+	record.Saving = true
+	local data = snapshot(record.Data)
+	local updatedRevision = record.Revision
+	local ownsLock = false
+	local ok = pcall(function()
+		store:UpdateAsync("Player_" .. player.UserId, function(old)
+			ownsLock = false
+			if type(old) ~= "table" or old.Session ~= sessionId then return nil end
+			ownsLock = true
+			local envelope = { Data = data, Session = sessionId, LeaseUntil = os.time() + 240 }
+			if release then envelope.Session = nil; envelope.LeaseUntil = nil end
+			return envelope
+		end)
+	end)
+	if ok and ownsLock then
+		record.SavedRevision = updatedRevision
+		record.LastSaveFailed = false
+	else
+		record.LastSaveFailed = true
+		if ok then record.Writable = false end
+		warn("Color Chaos: no se pudo guardar el progreso de " .. player.UserId)
+		if player.Parent then personal(player, { Toast = "No se pudo confirmar el guardado. Conserva esta sesión abierta." }) end
+	end
+	record.Saving = false
+end
+
+local function stats(player)
+	local record = profiles[player]
+	local folder = player:FindFirstChild("leaderstats")
+	if folder and record then
+		folder.Monedas.Value = record.Data.Coins
+		folder.Victorias.Value = record.Data.Wins
+	end
+end
+
+local function cosmetic(player)
+	local record, character = profiles[player], player.Character
+	if not record or not character then return end
+	local old = character:FindFirstChild("ChromaticAura")
+	if old then old:Destroy() end
+	local effect = Instance.new("Highlight")
+	effect.Name = "ChromaticAura"
+	effect.FillTransparency = 1
+	effect.OutlineColor = Config.Palettes[record.Data.Selected].Color
+	effect.OutlineTransparency = 0.2
+	effect.DepthMode = Enum.HighlightDepthMode.Occluded
+	effect.Parent = character
+end
+
+local world = Instance.new("Folder")
+world.Name = "ColorChaosWorld"
+world.Parent = workspace
+local function part(parent, name, size, position, color)
+	local p = Instance.new("Part")
+	p.Name, p.Size, p.Position = name, size, position
+	p.Anchored = true
+	p.Material = Enum.Material.SmoothPlastic
+	p.Color = color or Color3.fromRGB(35, 42, 67)
+	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+	p.Parent = parent
+	return p
+end
+
+local function label(parent, text, offset, compact)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = compact and UDim2.fromOffset(110, 36) or UDim2.fromOffset(270, 75)
+	gui.StudsOffset = offset or Vector3.new(0, 4, 0)
+	gui.MaxDistance = 170
+	gui.AlwaysOnTop = false
+	gui.Parent = parent
+	local t = Instance.new("TextLabel")
+	t.Size = UDim2.fromScale(1, 1)
+	t.BackgroundColor3 = Color3.fromRGB(16, 22, 39)
+	t.BackgroundTransparency = 0.15
+	t.TextColor3 = Color3.new(1, 1, 1)
+	t.Font = Enum.Font.GothamBold
+	t.TextScaled, t.TextWrapped = true, true
+	t.Text = text
+	t.Parent = gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = t
+	return t
+end
+
+local lobby = part(world, "Plaza del reactor", Vector3.new(90, 3, 70), Vector3.new(0, 5, 145))
+local spawn = Instance.new("SpawnLocation")
+spawn.Name = "LobbySpawn"
+spawn.Anchored, spawn.Neutral = true, true
+spawn.Size, spawn.Position = Vector3.new(10, 1, 10), Vector3.new(0, 7, 153)
+spawn.Color, spawn.Duration = Config.Colors[1].Color, 0
+spawn.Parent = world
+label(part(world, "Título", Vector3.new(1, 1, 1), Vector3.new(0, 17, 168)), "COLOR CHAOS\nRepara el mundo con tus amigos")
+local instructions = part(world, "Instrucciones", Vector3.new(1, 1, 1), Vector3.new(-27, 9, 144))
+label(instructions, "1. Espera la ronda\n2. Sigue letras y colores\n3. Coopera y gana monedas")
+local shop = part(world, "Tienda de auras", Vector3.new(8, 4, 8), Vector3.new(27, 8, 144), Config.Palettes[4].Color)
+label(shop, "AURAS\nSolo monedas ganadas jugando")
+local shopPrompt = Instance.new("ProximityPrompt")
+shopPrompt.ActionText, shopPrompt.ObjectText = "Abrir", "Auras"
+shopPrompt.RequiresLineOfSight = false
+shopPrompt.MaxActivationDistance = Config.InteractionDistance
+shopPrompt.Parent = shop
+shopPrompt.Triggered:Connect(function(player) personal(player, { OpenShop = true }) end)
+for i, c in ipairs(Config.Colors) do
+	part(world, "Decoración " .. c.Name, Vector3.new(5, 14 + i * 2, 5), Vector3.new(-35 + (i - 1) * 23, 5, 116), c.Color)
+end
+workspace.FallenPartsDestroyHeight = -60
+
+local function root(player)
+	return player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+end
+
+local function teleport(player, position)
+	local r = root(player)
+	if r then
+		r.AssemblyLinearVelocity = Vector3.zero
+		r.AssemblyAngularVelocity = Vector3.zero
+		player.Character:PivotTo(CFrame.new(position))
+	end
+end
+
+local function valid(player, target, round)
+	local entry, r = participants[player], root(player)
+	if currentRound ~= round or round.Success or state.Phase ~= "JUEGO" or not entry or not entry.Alive or not r then return false end
+	local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 or (r.Position - target.Position).Magnitude > Config.InteractionDistance + 2 then return false end
+	local now = os.clock()
+	if now - entry.LastInteraction < 0.25 then return false end
+	entry.LastInteraction = now
+	return true
+end
+
+local function prompt(target, text, callback)
+	local p = Instance.new("ProximityPrompt")
+	p.ActionText, p.ObjectText = text, target.Name
+	p.HoldDuration = 0.25
+	p.MaxActivationDistance = Config.InteractionDistance
+	p.RequiresLineOfSight = false
+	p.Parent = target
+	p.Triggered:Connect(callback)
+	return p
+end
+
+local function progress(round, amount)
+	round.Progress += amount
+	state.Progress = round.Progress
+	if round.Progress >= round.Total then round.Success = true end
+	broadcast()
+end
+
+local function newArena(mode)
+	local model = Instance.new("Model")
+	model.Name = "Ronda"
+	model.Parent = world
+	local round = { Model = model, Mode = mode.Id, Progress = 0, Total = 6, Success = false }
+	currentRound = round
+	if mode.Id == "memory" then
+		part(model, "Inicio", Vector3.new(38, 3, 26), Vector3.new(0, 20, 37))
+	else
+		part(model, "Arena", Vector3.new(92, 3, 92), Vector3.new(0, 20, 0))
+		for _, pos in ipairs({ Vector3.new(0, 23, 46), Vector3.new(0, 23, -46) }) do
+			part(model, "Baranda", Vector3.new(94, 3, 1), pos)
+		end
+		for _, pos in ipairs({ Vector3.new(46, 23, 0), Vector3.new(-46, 23, 0) }) do
+			part(model, "Baranda", Vector3.new(1, 3, 92), pos)
+		end
+	end
+	return round
+end
+
+local function memory(round)
+	round.Total = 5
+	round.Sequence, round.Bridges = {}, {}
+	for i = 1, round.Total do round.Sequence[i] = random:NextInteger(1, 4) end
+	local goal = part(round.Model, "Reactor de llegada", Vector3.new(28, 3, 16), Vector3.new(0, 20, -47), Config.Colors[3].Color)
+	label(goal, "ACTIVA LOS PUENTES\nLuego llega aquí")
+	local goalPrompt = prompt(goal, "Reparar reactor", function(player)
+		if not valid(player, goal, round) then return end
+		if round.Step == #round.Sequence then
+			participants[player].Contributed = true
+			progress(round, 1)
+		end
+	end)
+	goalPrompt.Enabled = false
+	round.Step = 0
+	for i, color in ipairs(Config.Colors) do
+		local button = part(round.Model, color.Name, Vector3.new(5, 2, 5), Vector3.new(-13.5 + (i - 1) * 9, 23, 41), color.Color)
+		label(button, color.Symbol .. " · " .. color.Name, Vector3.new(0, 3, 0), true)
+		prompt(button, "Activar", function(player)
+			if not valid(player, button, round) or round.Replaying or round.Step >= #round.Sequence then return end
+			if round.Sequence[round.Step + 1] ~= i then
+				round.Replaying = true
+				state.Message = "Secuencia incorrecta. ¡Vuelve a observar!"
+				for _, bridge in ipairs(round.Bridges) do bridge:Destroy() end
+				round.Bridges = {}
+				round.Step, round.Progress, state.Progress = 0, 0, 0
+				goalPrompt.Enabled = false
+				for teammate, entry in pairs(participants) do
+					if entry.Alive then teleport(teammate, Vector3.new(random:NextInteger(-10, 10), 25, 34)) end
+				end
+				task.spawn(function()
+					for step, code in ipairs(round.Sequence) do
+						if currentRound ~= round or state.Phase ~= "JUEGO" then return end
+						state.DemoCode, state.DemoStep = code, step; broadcast(); task.wait(1)
+						if currentRound ~= round or state.Phase ~= "JUEGO" then return end
+						state.DemoCode = nil; broadcast(); task.wait(0.2)
+					end
+					if currentRound ~= round or state.Phase ~= "JUEGO" then return end
+					state.DemoCode = nil
+					state.DemoStep = nil
+					state.Message = "Activa la secuencia en orden. Después cruza al reactor."
+					round.Replaying = false; broadcast()
+				end)
+			else
+				participants[player].Contributed = true
+				round.Step += 1
+				local bridge = part(round.Model, "Puente " .. round.Step, Vector3.new(18, 2, 12), Vector3.new(0, 20.5, 23 - (round.Step - 1) * 13), color.Color)
+				table.insert(round.Bridges, bridge)
+				progress(round, 1)
+				goalPrompt.Enabled = round.Step == #round.Sequence
+			end
+		end)
+	end
+	-- Five bridges plus activating the reactor completes this objective.
+	round.Total += 1
+end
+
+local function relay(round)
+	round.Total = 8
+	round.Target = random:NextInteger(1, 4)
+	state.Target = round.Target
+	local positions = { Vector3.new(-30, 24, -28), Vector3.new(30, 24, -28), Vector3.new(-30, 24, 24), Vector3.new(30, 24, 24) }
+	local core = part(round.Model, "Reactor", Vector3.new(8, 10, 8), Vector3.new(0, 27, 0), Config.Colors[1].Color)
+	core.Material = Enum.Material.Neon
+	label(core, "REPARACIÓN COOPERATIVA\nActiva la estación indicada")
+	for i, color in ipairs(Config.Colors) do
+		local node = part(round.Model, color.Name, Vector3.new(8, 5, 8), positions[i], color.Color)
+		label(node, color.Symbol .. " · " .. color.Name, Vector3.new(0, 5, 0), true)
+		prompt(node, "Reparar", function(player)
+			if not valid(player, node, round) or round.Cooldown then return end
+			if i ~= round.Target then
+				personal(player, { Toast = "Busca la letra indicada en la parte superior." })
+				return
+			end
+			round.Cooldown = true
+			participants[player].Contributed = true
+			core.Color = color.Color
+			progress(round, 1)
+			local nextTarget = random:NextInteger(1, 3)
+			if nextTarget >= round.Target then nextTarget += 1 end
+			round.Target, state.Target = nextTarget, nextTarget
+			broadcast()
+			task.delay(1.2, function() if currentRound == round then round.Cooldown = false end end)
+		end)
+	end
+end
+
+local function rescue(round)
+	round.Total = 4
+	round.Target = random:NextInteger(1, 4)
+	round.Carrier, round.Active = nil, false
+	state.Target = round.Target
+	-- The central floor stops at z=-46. Islands sit across the gap.
+	local core = part(round.Model, "Reactor receptor", Vector3.new(9, 5, 9), Vector3.new(0, 24, 12), Color3.fromRGB(230, 235, 255))
+	label(core, "ENTREGA LA CHISPA AQUÍ")
+	local islands = {}
+	for i, color in ipairs(Config.Colors) do
+		local x = -33 + (i - 1) * 22
+		local island = part(round.Model, "Isla " .. color.Name, Vector3.new(16, 3, 16), Vector3.new(x, 20, -75), color.Color)
+		label(island, color.Symbol .. " · " .. color.Name, Vector3.new(0, 4, 0), true)
+		local spark = part(round.Model, "Chispa " .. color.Name, Vector3.new(3, 3, 3), Vector3.new(x, 25, -75), color.Color)
+		spark.Shape, spark.Material = Enum.PartType.Ball, Enum.Material.Neon
+		spark.CanCollide = false
+		islands[i] = { Spark = spark }
+		prompt(spark, "Recoger chispa", function(player)
+			if not valid(player, spark, round) or not round.Active or round.Target ~= i or round.Carrier then return end
+			round.Carrier = player
+			participants[player].Contributed = true
+			spark.Transparency = 1
+			local indicator = Instance.new("BillboardGui")
+			indicator.Name, indicator.Size = "CarriedSpark", UDim2.fromOffset(120, 40)
+			indicator.StudsOffset = Vector3.new(0, 5, 0)
+			indicator.AlwaysOnTop = true
+			indicator.Parent = root(player)
+			local text = Instance.new("TextLabel")
+			text.Size, text.BackgroundTransparency = UDim2.fromScale(1, 1), 1
+			text.Text, text.TextColor3 = "✦ CHISPA", color.Color
+			text.TextScaled, text.Font = true, Enum.Font.GothamBold
+			text.Parent = indicator
+			state.Message = player.DisplayName .. " lleva la chispa. ¡Debe volver al reactor!"
+			broadcast()
+		end)
+		local node = part(round.Model, "Panel " .. color.Name, Vector3.new(5, 3, 5), Vector3.new(x, 23, -32), color.Color)
+		label(node, color.Symbol .. " · " .. color.Name, Vector3.new(0, 3, 0), true)
+		prompt(node, "Crear puente", function(player)
+			if not valid(player, node, round) or round.Active or round.Target ~= i then return end
+			participants[player].Contributed = true
+			round.Active = true
+			round.Bridge = part(round.Model, "Puente de rescate", Vector3.new(12, 2, 31), Vector3.new(x, 20.5, -55), color.Color)
+			state.Message = "Puente listo. Recoge la chispa " .. color.Symbol .. " y vuelve al reactor."
+			broadcast()
+		end)
+	end
+	round.ResetCarrier = function()
+		if round.Carrier then
+			local r = root(round.Carrier)
+			local indicator = r and r:FindFirstChild("CarriedSpark")
+			if indicator then indicator:Destroy() end
+		end
+		round.Carrier = nil
+		islands[round.Target].Spark.Transparency = 0
+	end
+	prompt(core, "Entregar chispa", function(player)
+		if not valid(player, core, round) or round.Carrier ~= player then return end
+		participants[player].Contributed = true
+		round.ResetCarrier()
+		progress(round, 1)
+		if round.Bridge then round.Bridge:Destroy() end
+		round.Active = false
+		local nextTarget = random:NextInteger(1, 3)
+		if nextTarget >= round.Target then nextTarget += 1 end
+		round.Target, state.Target = nextTarget, nextTarget
+		-- Bring teammates off the old island before removing their route.
+		for teammate, entry in pairs(participants) do
+			if entry.Alive then teleport(teammate, Vector3.new(random:NextInteger(-10, 10), 25, 28)) end
+		end
+		state.Message = "¡Chispa entregada! Activa el siguiente puente."
+		broadcast()
+	end)
+end
+
+local function eliminate(player)
+	local entry = participants[player]
+	if entry and entry.Alive then
+		entry.Alive = false
+		if currentRound and currentRound.Carrier == player then
+			currentRound.ResetCarrier()
+			state.Message = "La chispa volvió a su isla. Otro jugador puede recogerla."
+		end
+		personal(player, { Toast = "Vuelve a la plaza. Entrarás en la siguiente ronda." })
+	end
+end
+
+local function onCharacter(player, character)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	local r = character:WaitForChild("HumanoidRootPart", 10)
+	if not humanoid or not r then return end
+	-- A new character always starts in the lobby; never re-enter an active round.
+	eliminate(player)
+	teleport(player, Vector3.new(random:NextInteger(-8, 8), 11, 153))
+	cosmetic(player)
+	humanoid.Died:Connect(function() eliminate(player) end)
+end
+
+local function onPlayer(player)
+	if initializing[player] or profiles[player] then return end
+	initializing[player] = true
+	player.CharacterAdded:Connect(function(character) onCharacter(player, character) end)
+	if player.Character then task.spawn(onCharacter, player, player.Character) end
+	local data = Rules.cleanProfile(nil, #Config.Palettes)
+	local writable = false
+	if savingEnabled then
+		local acquired, loaded = false, nil
+		for attempt = 1, 3 do
+			local ok = pcall(function()
+				store:UpdateAsync("Player_" .. player.UserId, function(old)
+					acquired, loaded = false, nil
+					if type(old) == "table" and old.Session and old.Session ~= sessionId and (tonumber(old.LeaseUntil) or 0) > os.time() then return nil end
+					loaded = Rules.cleanProfile(type(old) == "table" and (old.Data or old) or nil, #Config.Palettes)
+					acquired = true
+					return { Data = snapshot(loaded), Session = sessionId, LeaseUntil = os.time() + 240 }
+				end)
+			end)
+			if ok and acquired then data, writable = loaded, true; break end
+			if attempt < 3 then task.wait(attempt * 2) end
+		end
+	end
+	profiles[player] = { Data = data, Writable = writable, Saving = false, Revision = 0, SavedRevision = 0 }
+	initializing[player] = nil
+	if not player.Parent then save(player, true); profiles[player] = nil; return end
+	local leaderboard = Instance.new("Folder")
+	leaderboard.Name, leaderboard.Parent = "leaderstats", player
+	for _, name in ipairs({ "Monedas", "Victorias" }) do
+		local value = Instance.new("IntValue")
+		value.Name, value.Parent = name, leaderboard
+	end
+	stats(player); cosmetic(player); personal(player)
+end
+
+Players.PlayerAdded:Connect(onPlayer)
+for _, player in ipairs(Players:GetPlayers()) do task.spawn(onPlayer, player) end
+Players.PlayerRemoving:Connect(function(player)
+	eliminate(player)
+	participants[player] = nil
+	save(player, true)
+	profiles[player], lastActions[player] = nil, nil
+end)
+
+actionEvent.OnServerEvent:Connect(function(player, action, value)
+	local now = os.clock()
+	if now - (lastActions[player] or 0) < 0.3 then return end
+	lastActions[player] = now
+	if action == "Sync" then personal(player); return end
+	local record = profiles[player]
+	if action ~= "Palette" or not record then return end
+	local ok, message = Rules.purchase(record.Data, value, Config.Palettes)
+	if ok then
+		record.Revision += 1
+		stats(player); cosmetic(player)
+	end
+	personal(player, { Toast = message })
+end)
+
+task.spawn(function()
+	while not closing do
+		task.wait(Config.SaveInterval)
+		for player, record in pairs(profiles) do
+			if record.Writable then task.spawn(save, player, false) end
+		end
+	end
+end)
+
+game:BindToClose(function()
+	closing = true
+	local pending = 0
+	for player in pairs(profiles) do
+		pending += 1
+		task.spawn(function() save(player, true); pending -= 1 end)
+	end
+	local deadline = os.clock() + 25
+	while pending > 0 and os.clock() < deadline do task.wait(0.1) end
+end)
+
+local modeIndex = 0
+while not closing do
+	participants = {}
+	state = { Phase = "LOBBY", Message = "La ciudad perdió sus colores. ¡Reparemos su reactor!", Progress = 0, Total = 0 }
+	for remaining = Config.Intermission, 1, -1 do
+		state.Seconds = remaining; broadcast(); task.wait(1)
+	end
+	local ready = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if profiles[player] and humanoid and humanoid.Health > 0 and root(player) then table.insert(ready, player) end
+	end
+	if #ready < Config.MinimumPlayers then
+		state.Message = "Esperando jugadores listos..."; broadcast(); task.wait(2)
+		continue
+	end
+	modeIndex = modeIndex % #Config.Modes + 1
+	local mode = Config.Modes[modeIndex]
+	local round = newArena(mode)
+	state = { Phase = "PREPARACIÓN", Mode = mode.Name, Message = mode.Hint, Progress = 0, Total = 0, Seconds = Config.RoundSeconds }
+	if mode.Id == "memory" then memory(round) elseif mode.Id == "relay" then relay(round) else rescue(round) end
+	state.Total = round.Total
+	for i, player in ipairs(ready) do
+		if i <= Config.MaxParticipants then
+			participants[player] = { Alive = true, Contributed = false, LastInteraction = 0 }
+			teleport(player, Vector3.new(-10 + ((i - 1) % 5) * 5, 25, 34 - math.floor((i - 1) / 5) * 5))
+		end
+	end
+	broadcast(); task.wait(3)
+	if mode.Id == "memory" then
+		state.Message = "OBSERVA LA SECUENCIA. Después activa las letras."
+		for step, code in ipairs(round.Sequence) do
+			state.DemoCode, state.DemoStep = code, step; broadcast(); task.wait(1)
+			state.DemoCode = nil; broadcast(); task.wait(0.2)
+		end
+		state.DemoCode, state.DemoStep = nil, nil
+		state.Message = "Activa la secuencia en orden y cruza al reactor."
+	end
+	state.Phase = "JUEGO"
+	for remaining = Config.RoundSeconds, 0, -1 do
+		state.Seconds = remaining; broadcast()
+		local alive = false
+		for player, entry in pairs(participants) do
+			if entry.Alive then
+				local r = root(player)
+				if not r or r.Position.Y < 5 then
+					eliminate(player)
+					teleport(player, Vector3.new(0, 11, 153))
+				else alive = true end
+			end
+		end
+		if round.Success or not alive or remaining == 0 then break end
+		task.wait(1)
+	end
+	state.Phase = "RESULTADOS"
+	state.Target, state.DemoCode = nil, nil
+	state.Message = round.Success and "¡REACTOR REPARADO! El equipo devolvió el color." or "El reactor sigue apagado. ¡Lo intentaremos en la siguiente ronda!"
+	if round.ResetCarrier then round.ResetCarrier() end
+	for player, entry in pairs(participants) do
+		local record = profiles[player]
+		if record then
+			local coins, wins = Rules.reward(round.Success, entry.Contributed, entry.Alive, Config.WinCoins, Config.ParticipationCoins)
+			record.Data.Coins += coins; record.Data.Wins += wins; record.Revision += 1
+			stats(player)
+			personal(player, { Toast = coins > 0 and ("+" .. coins .. " monedas por colaborar") or "Colabora en un objetivo para ganar monedas." })
+		end
+		teleport(player, Vector3.new(random:NextInteger(-12, 12), 11, 153))
+	end
+	currentRound = nil
+	Debris:AddItem(round.Model, 0)
+	for remaining = Config.ResultSeconds, 1, -1 do state.Seconds = remaining; broadcast(); task.wait(1) end
+end
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="SoundService" referent="8">
+    <Properties>
+      <string name="Name">SoundService</string>
+      <bool name="RespectFilteringEnabled">true</bool>
+    </Properties>
+  </Item>
+  <Item class="StarterPlayer" referent="9">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="10">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="Folder" referent="11">
+        <Properties>
+          <string name="Name">ColorChaosClient</string>
+        </Properties>
+        <Item class="LocalScript" referent="12">
+          <Properties>
+            <string name="Name">Main</string>
+            <string name="Source"><![CDATA[-- Presentation only. The server decides objectives, currency and ownership.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local shared = ReplicatedStorage:WaitForChild("ColorChaos")
+local Config = require(shared:WaitForChild("Config"))
+local remotes = shared:WaitForChild("Remotes")
+local stateEvent = remotes:WaitForChild("State")
+local actionEvent = remotes:WaitForChild("Action")
+local latest = {}
+local paletteButtons = {}
+local toastSerial = 0
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ColorChaosUI"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local function roundCorners(object, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius or 12)
+	c.Parent = object
+end
+
+local function text(parent, content, size, position, dimensions)
+	local t = Instance.new("TextLabel")
+	t.BackgroundTransparency = 1
+	t.Text, t.TextSize = content, size
+	t.TextColor3 = Color3.fromRGB(245, 248, 255)
+	t.Font = Enum.Font.GothamBold
+	t.TextWrapped = true
+	t.TextXAlignment = Enum.TextXAlignment.Left
+	t.Size, t.Position = dimensions, position
+	t.Parent = parent
+	return t
+end
+
+local function button(parent, content, position, dimensions, callback)
+	local b = Instance.new("TextButton")
+	b.Text, b.TextSize = content, 16
+	b.Font = Enum.Font.GothamBold
+	b.TextColor3 = Color3.fromRGB(245, 248, 255)
+	b.BackgroundColor3 = Color3.fromRGB(48, 64, 93)
+	b.Size, b.Position = dimensions, position
+	b.Parent = parent
+	roundCorners(b, 10)
+	b.Activated:Connect(callback)
+	return b
+end
+
+local top = Instance.new("Frame")
+top.AnchorPoint = Vector2.new(0.5, 0)
+top.Position, top.Size = UDim2.new(0.5, 0, 0, 8), UDim2.new(0.92, 0, 0, 156)
+top.BackgroundColor3 = Color3.fromRGB(17, 24, 42)
+top.BackgroundTransparency = 0.08
+top.Parent = gui
+roundCorners(top)
+local topConstraint = Instance.new("UISizeConstraint")
+topConstraint.MaxSize = Vector2.new(760, 156)
+topConstraint.Parent = top
+local title = text(top, "COLOR CHAOS", 23, UDim2.fromOffset(14, 9), UDim2.new(1, -100, 0, 29))
+title.TextScaled = true
+local titleConstraint = Instance.new("UITextSizeConstraint")
+titleConstraint.MinTextSize, titleConstraint.MaxTextSize = 13, 23
+titleConstraint.Parent = title
+local timer = text(top, "--", 24, UDim2.new(1, -78, 0, 9), UDim2.fromOffset(64, 29))
+timer.TextXAlignment = Enum.TextXAlignment.Right
+local message = text(top, "Conectando con el reactor...", 15, UDim2.fromOffset(14, 44), UDim2.new(1, -28, 0, 44))
+local target = text(top, "", 20, UDim2.fromOffset(14, 91), UDim2.new(1, -28, 0, 28))
+local bar = Instance.new("Frame")
+bar.Position, bar.Size = UDim2.fromOffset(14, 127), UDim2.new(1, -28, 0, 12)
+bar.BackgroundColor3 = Color3.fromRGB(49, 60, 82)
+bar.Parent = top
+roundCorners(bar, 6)
+local fill = Instance.new("Frame")
+fill.Size = UDim2.fromScale(0, 1)
+fill.BackgroundColor3 = Config.Colors[3].Color
+fill.Parent = bar
+roundCorners(fill, 6)
+
+local footer = Instance.new("Frame")
+footer.AnchorPoint = Vector2.new(0.5, 1)
+footer.Position, footer.Size = UDim2.new(0.5, 0, 1, -12), UDim2.new(0.9, 0, 0, 85)
+footer.BackgroundColor3 = Color3.fromRGB(17, 24, 42)
+footer.BackgroundTransparency = 0.08
+footer.Parent = gui
+roundCorners(footer)
+local footerConstraint = Instance.new("UISizeConstraint")
+footerConstraint.MaxSize = Vector2.new(660, 85)
+footerConstraint.Parent = footer
+local topScale = Instance.new("UIScale")
+topScale.Parent = top
+local footerScale = Instance.new("UIScale")
+footerScale.Parent = footer
+local function adaptToScreen()
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	local touch = UserInputService.TouchEnabled
+	local compact = touch and camera.ViewportSize.Y < 500
+	local factor = compact and 0.72 or 1
+	topScale.Scale, footerScale.Scale = factor, factor
+	-- Touch controls occupy the bottom corners; place the HUD above them.
+	if touch then
+		footer.AnchorPoint = Vector2.new(0.5, 0)
+		footer.Position = UDim2.new(0.5, 0, 0, math.floor(156 * factor) + 18)
+	else
+		footer.AnchorPoint = Vector2.new(0.5, 1)
+		footer.Position = UDim2.new(0.5, 0, 1, -12)
+	end
+end
+local viewportConnection
+local function watchCamera()
+	if viewportConnection then viewportConnection:Disconnect() end
+	if workspace.CurrentCamera then
+		viewportConnection = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(adaptToScreen)
+	end
+	adaptToScreen()
+end
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
+watchCamera()
+local balance = text(footer, "0 monedas · 0 victorias", 15, UDim2.fromOffset(12, 7), UDim2.new(1, -24, 0, 23))
+local persistence = text(footer, "Cargando progreso", 11, UDim2.fromOffset(12, 31), UDim2.new(0.6, 0, 0, 19))
+local participation = text(footer, "", 11, UDim2.fromOffset(12, 53), UDim2.new(0.58, 0, 0, 24))
+
+local overlay = Instance.new("Frame")
+overlay.Size = UDim2.fromScale(1, 1)
+overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+overlay.BackgroundTransparency = 0.3
+overlay.Visible = false
+overlay.ZIndex = 10
+overlay.Parent = gui
+local panel = Instance.new("Frame")
+panel.AnchorPoint = Vector2.new(0.5, 0.5)
+panel.Position, panel.Size = UDim2.fromScale(0.5, 0.5), UDim2.fromScale(0.9, 0.85)
+panel.BackgroundColor3 = Color3.fromRGB(21, 30, 49)
+panel.ZIndex = 11
+panel.Parent = overlay
+roundCorners(panel)
+local panelConstraint = Instance.new("UISizeConstraint")
+panelConstraint.MaxSize = Vector2.new(610, 540)
+panelConstraint.Parent = panel
+local heading = text(panel, "AURAS", 25, UDim2.fromOffset(16, 12), UDim2.new(1, -85, 0, 34))
+heading.ZIndex = 12
+local close = button(panel, "X", UDim2.new(1, -54, 0, 10), UDim2.fromOffset(40, 38), function() overlay.Visible = false end)
+close.ZIndex = 12
+local scroll = Instance.new("ScrollingFrame")
+scroll.Position, scroll.Size = UDim2.fromOffset(16, 57), UDim2.new(1, -32, 1, -73)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 5
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.CanvasSize = UDim2.new()
+scroll.ZIndex = 12
+scroll.Parent = panel
+local shopContent = Instance.new("Frame")
+shopContent.Size = UDim2.new(1, -8, 0, 390)
+shopContent.BackgroundTransparency = 1
+shopContent.ZIndex = 12
+shopContent.Parent = scroll
+local shopInfo = text(shopContent, "Auras visibles para tu personaje.\nSe compran con monedas del juego. No se usan Robux.", 15, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 0, 58))
+shopInfo.ZIndex = 13
+for i, palette in ipairs(Config.Palettes) do
+	local b = button(shopContent, palette.Name, UDim2.fromOffset(0, 65 + (i - 1) * 70), UDim2.new(1, 0, 0, 59), function()
+		actionEvent:FireServer("Palette", i)
+	end)
+	b.BackgroundColor3 = palette.Color
+	b.TextColor3 = Color3.fromRGB(16, 24, 39)
+	b.ZIndex = 13
+	paletteButtons[i] = b
+end
+local helpContent = Instance.new("TextLabel")
+helpContent.Size = UDim2.new(1, -8, 0, 0)
+helpContent.AutomaticSize = Enum.AutomaticSize.Y
+helpContent.BackgroundTransparency = 1
+helpContent.TextSize = 17
+helpContent.TextWrapped = true
+helpContent.TextColor3 = Color3.fromRGB(240, 245, 255)
+helpContent.Font = Enum.Font.Gotham
+helpContent.TextXAlignment, helpContent.TextYAlignment = Enum.TextXAlignment.Left, Enum.TextYAlignment.Top
+helpContent.Text = "LA MISIÓN\nUna máquina borró los colores de la ciudad. Coopera para reparar su reactor.\n\nCONTROLES\nAcércate a un panel y mantén E en PC, toca su botón en móvil o usa el botón indicado en consola.\n\nPUENTES DE MEMORIA\nObserva cinco letras. Actívalas en ese orden y cruza al reactor. Un error reinicia los puentes.\n\nREPARACIÓN EN EQUIPO\nVe a la estación de la letra indicada y repárala. El objetivo es compartido.\n\nRESCATE CROMÁTICO\nActiva el panel indicado, cruza a la isla, recoge su chispa y entrégala al reactor. Si el portador cae, la chispa regresa a la isla.\n\nRECOMPENSAS\nColaborar y sobrevivir a una victoria da 35 monedas y una victoria. Colaborar sin lograrlo da 10 monedas. Las auras son cosméticas.\n\nSI CAES O ENTRAS TARDE\nEspera en la plaza hasta la siguiente ronda.\n\nACCESIBILIDAD\nAzul = A · Amarillo = B · Verde = C · Rojo = D. Todas las indicaciones incluyen letras.\n\nGUARDADO\nStudio usa progreso temporal. Una experiencia publicada intenta guardar automáticamente. Si el guardado falla, la interfaz lo avisa."
+helpContent.ZIndex = 13
+helpContent.Visible = false
+helpContent.Parent = scroll
+
+local function openShop()
+	heading.Text = "AURAS"
+	shopContent.Visible, helpContent.Visible = true, false
+	scroll.CanvasPosition = Vector2.zero
+	overlay.Visible = true
+end
+local function openHelp()
+	heading.Text = "CÓMO JUGAR"
+	shopContent.Visible, helpContent.Visible = false, true
+	scroll.CanvasPosition = Vector2.zero
+	overlay.Visible = true
+end
+button(footer, "AURAS", UDim2.new(0.62, 0, 0, 37), UDim2.new(0.18, -6, 0, 36), openShop)
+button(footer, "AYUDA", UDim2.new(0.8, 0, 0, 37), UDim2.new(0.2, -12, 0, 36), openHelp)
+
+local toast = text(gui, "", 17, UDim2.new(0.5, 0, 0.65, 0), UDim2.new(0.85, 0, 0, 70))
+toast.AnchorPoint = Vector2.new(0.5, 0.5)
+toast.TextXAlignment = Enum.TextXAlignment.Center
+toast.BackgroundColor3, toast.BackgroundTransparency = Color3.fromRGB(17, 24, 42), 0.05
+toast.Visible, toast.ZIndex = false, 20
+roundCorners(toast)
+local toastConstraint = Instance.new("UISizeConstraint")
+toastConstraint.MaxSize = Vector2.new(620, 70)
+toastConstraint.Parent = toast
+
+local function showToast(content)
+	toastSerial += 1
+	local serial = toastSerial
+	toast.Text, toast.Visible = content, true
+	task.delay(4, function() if toastSerial == serial then toast.Visible = false end end)
+end
+
+stateEvent.OnClientEvent:Connect(function(payload)
+	latest = payload
+	title.Text = payload.Mode or "COLOR CHAOS"
+	title.TextSize = payload.Mode and 18 or 23
+	timer.Text = tostring(payload.Seconds or 0) .. "s"
+	message.Text = payload.Message or ""
+	local colorIndex = payload.DemoCode or payload.Target
+	local color = colorIndex and Config.Colors[colorIndex]
+	if color then
+		target.Text = (payload.DemoCode and ("PASO " .. tostring(payload.DemoStep or "") .. ": ") or "OBJETIVO: ") .. color.Symbol .. " · " .. color.Name
+		target.TextColor3 = color.Color
+	else
+		target.Text = (payload.Progress or 0) .. " / " .. (payload.Total or 0) .. " objetivos · " .. (payload.Phase or "")
+		target.TextColor3 = Color3.fromRGB(230, 235, 255)
+	end
+	local ratio = payload.Total and payload.Total > 0 and (payload.Progress or 0) / payload.Total or 0
+	TweenService:Create(fill, TweenInfo.new(0.2), { Size = UDim2.fromScale(math.clamp(ratio, 0, 1), 1) }):Play()
+	if payload.Profile then
+		balance.Text = payload.Profile.Coins .. " monedas · " .. payload.Profile.Wins .. " victorias"
+		for i, b in ipairs(paletteButtons) do
+			local owned = payload.Profile.Owned[tostring(i)]
+			local status = payload.Profile.Selected == i and "EQUIPADA" or (owned and "EQUIPAR" or Config.Palettes[i].Cost .. " monedas")
+			b.Text = Config.Palettes[i].Name .. " · " .. status
+		end
+	end
+	persistence.Text = payload.Persistence or "Cargando progreso"
+	if payload.Phase == "JUEGO" or payload.Phase == "PREPARACIÓN" then
+		participation.Text = payload.Participating and payload.Alive and "EN EL EQUIPO" or "SIGUIENTE RONDA EN LA PLAZA"
+	else participation.Text = "COOPERA · EXPLORA · REPARA" end
+	if payload.Toast then showToast(payload.Toast) end
+	if payload.OpenShop then openShop() end
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == Enum.KeyCode.H then
+		if overlay.Visible then overlay.Visible = false else openHelp() end
+	elseif input.KeyCode == Enum.KeyCode.Escape then overlay.Visible = false end
+end)
+
+-- Request a snapshot after subscribing, since earlier broadcasts may be missed.
+actionEvent:FireServer("Sync")
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="Workspace" referent="13">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <float name="Gravity">140</float>
+      <bool name="NeedsPivotMigration">false</bool>
+    </Properties>
+  </Item>
+</roblox>
