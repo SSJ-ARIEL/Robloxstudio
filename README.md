@@ -41,9 +41,9 @@ GitHub guarda las versiones del proyecto. Rojo convierte los archivos en objetos
 
 ## 1. Obtén los archivos
 
-Descarga el paquete fuente `ColorChaos-source.zip` entregado con el proyecto y extráelo. Debes tener `default.project.json`, `src/`, `tools/` y `tests/`, no solamente los scripts sueltos. Abre una terminal dentro de la carpeta que contiene `default.project.json`.
+El código ya está disponible en la rama **main** de [SSJ-ARIEL/Robloxstudio](https://github.com/SSJ-ARIEL/Robloxstudio). Abre el repositorio y usa **Code → Download ZIP**, o clónalo mediante GitHub Desktop. Extrae el ZIP si lo descargaste.
 
-También puedes abrir `SSJ-ARIEL/Robloxstudio` en GitHub: si esta versión aparece allí, usa **Code → Download ZIP** o clónala mediante GitHub Desktop. El mensaje de entrega indica si el código se pudo subir. Si el repositorio aún está vacío, utiliza el ZIP y el paso 7 para subirlo.
+También puedes usar el paquete fuente `ColorChaos-source.zip` entregado con el proyecto. Debes tener `default.project.json`, `src/`, `tools/` y `tests/`, no solamente los scripts sueltos. Abre una terminal dentro de la carpeta que contiene `default.project.json`.
 
 No ejecutes `rojo init`: este proyecto ya incluye su configuración.
 
@@ -146,15 +146,15 @@ Estas pruebas requieren Roblox Studio; una compilación satisfactoria en la nube
 
 El guardado se realiza desde el servidor y puede fallar por límites o indisponibilidad de Roblox. Esta versión desactiva las escrituras de DataStore cuando se ejecuta dentro de Studio: allí el progreso solo dura la sesión. Para comprobar la persistencia, usa el cliente de Roblox en una experiencia publicada de desarrollo. Mantén esa experiencia separada de producción y utiliza un nombre de DataStore distinto, configurado mediante `Config.DataStoreName` en `src/shared/Config.luau`.
 
-## 7. Guarda el proyecto en GitHub
+## 7. Guarda tus cambios en GitHub
 
 La opción gráfica es [GitHub Desktop](https://desktop.github.com/):
 
 1. Inicia sesión con la cuenta que tiene acceso a `SSJ-ARIEL/Robloxstudio`.
-2. Usa **File → Clone repository**, elige ese repositorio y clónalo a una carpeta local. Si ya contiene el código de esta entrega, puedes iniciar `rojo serve` desde esa copia: no necesitas volver a subir los mismos archivos.
-3. Si todavía está vacío, copia los archivos fuente descargados dentro de esa carpeta, incluyendo `.gitignore`. Conserva la carpeta `.git` creada por GitHub Desktop; no la reemplaces con otra.
-4. Para guardar archivos nuevos o cambios, revísalos en GitHub Desktop, escribe un resumen como `Crear primera versión de Color Chaos` y elige **Commit**. Después usa **Publish branch** o **Push origin**, según el botón que aparezca.
-5. Abre el repositorio en GitHub y comprueba que aparecen `default.project.json` y `src/`. En adelante, inicia `rojo serve` desde esta copia local y guarda cada actualización con **Commit → Push**.
+2. Usa **File → Clone repository**, elige ese repositorio y clónalo a una carpeta local. Esta copia ya incluye el juego; no necesitas volver a subir los archivos de la entrega.
+3. Inicia `rojo serve` desde esa carpeta y edita allí los archivos fuente. Conserva la carpeta `.git` creada por GitHub Desktop.
+4. Para guardar cambios, revísalos en GitHub Desktop, escribe un resumen de la actualización y elige **Commit to main → Push origin**.
+5. Abre el repositorio en GitHub y comprueba que los cambios aparecen en `main`. Para obtener actualizaciones antes de trabajar, usa **Fetch origin / Pull origin** en GitHub Desktop.
 
 Los archivos `.tools/` y `build/` se excluyen mediante `.gitignore`: el proyecto fuente permite volver a generar el lugar. Subir código a GitHub no publica la experiencia en Roblox; eso se hace desde Studio.
 
@@ -180,14 +180,14 @@ Para futuras tareas, utiliza esta copia del proyecto: cada tarea en la nube ya t
 
 Esta sección es para el entorno de nube. **En Windows y macOS no necesitas ejecutar estos scripts Bash**: utiliza la instalación de Rojo y los comandos de los pasos 2–4.
 
-Los helpers son para **Linux x86_64**, con `bash`, `curl`, `unzip` y `sha256sum`. Instalan Rojo 7.6.1 y Luau 0.694 desde sus publicaciones oficiales y verifican las sumas SHA-256. Desde la carpeta del proyecto:
+Los helpers son para **Linux x86_64**, con `bash`, `curl`, `unzip`, `sha256sum` y Python 3. Instalan Rojo 7.6.1 y Luau 0.694 desde sus publicaciones oficiales y verifican las sumas SHA-256. Desde la carpeta del proyecto:
 
 ```sh
 bash tools/setup.sh
 bash tools/validate.sh
 ```
 
-La instalación local queda en `.tools/`. La validación compila los archivos Luau, ejecuta las pruebas de reglas y genera `build/ColorChaos.rbxlx`. No ejecuta el motor de Roblox ni instala Studio.
+La instalación local queda en `.tools/`. La validación compila los archivos Luau, ejecuta 20 pruebas de reglas, simula la lógica del servidor con servicios y jugadores ficticios y genera `build/ColorChaos.rbxlx`. La simulación comprueba las tres rondas y las recompensas, incluyendo entrada tardía y recuperación de una chispa. No ejecuta el motor de Roblox ni valida física, red, apariencia o disponibilidad real de DataStore.
 
 En el entorno preparado para este proyecto, las herramientas también pueden estar fuera del repositorio. Usa la misma ruta en ambos comandos:
 

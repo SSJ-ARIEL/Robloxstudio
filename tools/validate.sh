@@ -36,6 +36,10 @@ if [[ "$test_count" -eq 0 ]]; then
   exit 1
 fi
 
+# Exercise the real server orchestration with mocks. This cannot validate
+# Roblox physics, networking, rendering or production DataStore availability.
+LUAU_BIN="$tools_dir/luau" python3 tools/simulate-server.py
+
 mkdir -p build
 "$tools_dir/rojo" build default.project.json --output build/ColorChaos.rbxlx
 printf '%s\n' 'Place built: build/ColorChaos.rbxlx'
