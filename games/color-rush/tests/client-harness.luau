@@ -201,4 +201,3 @@ check(#mounts==beforeCancel,'real-match preview cancels practice timers')
 check(practiceStart.Parent.Parent.Parent.Parent.Visible==false,'real-match preview closes the training menu')
 check(#sent==actionCount,'practice never calls server currency or purchase actions')
 print('Color Rush UI smoke checks: '..checks..' passed (simulated engine).')
-
