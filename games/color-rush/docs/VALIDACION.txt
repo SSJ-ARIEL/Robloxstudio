@@ -1,0 +1,278 @@
+Compiled 18 Color Rush Luau sources.
+PASS ledger: both currencies and receipt metadata commit together
+PASS ledger: input records are never mutated
+PASS ledger: lost acknowledgment recovery uses original durable amounts
+PASS ledger: repeated reconciliation is idempotent
+PASS ledger: concurrent free spending and credit consumption survive receipt recovery
+PASS ledger: concurrent wins and cosmetics survive
+PASS ledger: later autosave does not restore spent paid credits
+PASS ledger: durable record retains independent nested metadata
+PASS ledger: exact currency and credit cap preserves all paid value
+PASS ledger: coin overflow refuses purchase without inserting receipt
+PASS ledger: credit overflow refuses purchase without inserting receipt
+PASS ledger: duplicates remain acknowledged at both caps
+PASS ledger: overflow recovery refuses silent truncation
+PASS ledger: local-only receipt cannot masquerade as durable proof
+PASS ledger: invalid coin grant rejected
+PASS ledger: invalid credit grant rejected
+PASS ledger: invalid coin grant rejected
+PASS ledger: invalid credit grant rejected
+PASS ledger: invalid coin grant rejected
+PASS ledger: invalid credit grant rejected
+PASS ledger: invalid coin grant rejected
+PASS ledger: invalid credit grant rejected
+PASS ledger: invalid coin grant rejected
+PASS ledger: invalid credit grant rejected
+PASS ledger: invalid coin grant rejected
+PASS ledger: invalid credit grant rejected
+PASS ledger: zero-value purchase rejected
+PASS ledger: malformed receipt ID rejected
+PASS ledger: malformed receipt ID rejected
+PASS ledger: malformed receipt ID rejected
+PASS ledger: malformed receipt ID rejected
+PASS ledger: malformed stored receipt metadata fails closed
+PASS ledger: missing legacy receipt field is valid
+PASS ledger: string receipt history is invalid
+PASS ledger: cleaned receipts retain only exact valid grants
+All 35 ledger checks passed.
+PASS commerce: durable confirmation grants the matching configured product
+PASS commerce: successful commit updates presentation
+PASS commerce: start installs one receipt callback and one event listener
+PASS commerce: invalid receipt product IDs remain unresolved
+PASS commerce: invalid receipt product IDs remain unresolved
+PASS commerce: invalid receipt product IDs remain unresolved
+PASS commerce: invalid receipt product IDs remain unresolved
+PASS commerce: invalid receipt product IDs remain unresolved
+PASS commerce: invalid receipt product IDs remain unresolved
+PASS commerce: invalid receipt product IDs remain unresolved
+PASS commerce: invalid receipt product IDs remain unresolved
+PASS commerce: invalid receipt product IDs remain unresolved
+PASS commerce: unknown products are not acknowledged
+PASS commerce: malformed receipt tables are not acknowledged
+PASS commerce: invalid purchase identifiers are not acknowledged
+PASS commerce: invalid player identifiers are not acknowledged
+PASS commerce: malformed receipts never reach persistence
+PASS commerce: offline receipts remain unresolved
+PASS commerce: unloaded profiles cannot receive a purchase
+PASS commerce: readonly profiles cannot acknowledge a purchase
+PASS commerce: failed persistence remains unresolved
+PASS commerce: truthy values are not durable confirmation
+PASS commerce: persistence exceptions remain unresolved
+PASS commerce: presentation failure cannot revoke a durable purchase
+PASS commerce: first receipt credits through atomic persistence hook
+PASS commerce: duplicate callback delegates idempotence without re-crediting
+PASS commerce: catalog exposes configured identity and no universal price
+PASS commerce: client-facing catalog cannot mutate server IDs
+PASS commerce: opening a prompt does not credit currency
+PASS commerce: product prompt success never credits currency
+PASS commerce: prompt close retains a short anti-spam cooldown
+PASS commerce: another deliberate purchase is allowed after closing
+PASS commerce: unfinished prompt blocks overlapping dialogs
+PASS commerce: unrelated close events cannot release an active prompt
+PASS commerce: purchase kind is strictly allowlisted
+PASS commerce: purchase kind is strictly allowlisted
+PASS commerce: purchase kind is strictly allowlisted
+PASS commerce: purchase kind is strictly allowlisted
+PASS commerce: purchase kind is strictly allowlisted
+PASS commerce: raw product IDs are not accepted from clients
+PASS commerce: unknown keys cannot prompt a purchase
+PASS commerce: Studio or failed persistence disables consumable purchases
+PASS commerce: readonly catalog marks consumables unavailable
+PASS commerce: purchased currency is not silently lost at wallet limit
+PASS commerce: prompt API errors never grant a purchase
+PASS commerce: failed prompts release reservation for a later retry
+PASS commerce: ownership lookup alone confirms no VIP entitlement
+PASS commerce: claimed pass purchase cannot override server ownership
+PASS commerce: verified pass ownership grants cosmetic entitlement
+PASS commerce: owned pass is marked owned in the catalog
+PASS commerce: already-owned pass does not open another prompt
+PASS commerce: ownership outage preserves previously confirmed VIP
+PASS commerce: unrelated passes and forged players do not refresh entitlement
+PASS commerce: valid pass uses the server-configured pass ID
+PASS commerce: overlap during yielding ownership checks is blocked
+PASS commerce: cancelled pass dialog permits a later request
+PASS commerce: departure clears stale purchase reservations
+PASS commerce: player leaving during ownership lookup cannot prompt
+PASS commerce: unconfirmed pass ownership cannot trigger a charge
+PASS commerce: pending state Saving disables new product prompts
+PASS commerce: pending state Saving disables catalog availability
+PASS commerce: pending state Saving keeps existing receipt retry path
+PASS commerce: resolved state Saving restores product availability
+PASS commerce: pending state Leaving disables new product prompts
+PASS commerce: pending state Leaving disables catalog availability
+PASS commerce: pending state Leaving keeps existing receipt retry path
+PASS commerce: resolved state Leaving restores product availability
+PASS commerce: pending state PendingPaid disables new product prompts
+PASS commerce: pending state PendingPaid disables catalog availability
+PASS commerce: pending state PendingPaid keeps existing receipt retry path
+PASS commerce: resolved state PendingPaid restores product availability
+PASS commerce: pending state UncertainReceipt disables new product prompts
+PASS commerce: pending state UncertainReceipt disables catalog availability
+PASS commerce: pending state UncertainReceipt keeps existing receipt retry path
+PASS commerce: resolved state UncertainReceipt restores product availability
+PASS commerce: pending state LastSaveFailed disables new product prompts
+PASS commerce: pending state LastSaveFailed disables catalog availability
+PASS commerce: pending state LastSaveFailed keeps existing receipt retry path
+PASS commerce: resolved state LastSaveFailed restores product availability
+PASS commerce: receipt history below limit still allows purchases
+PASS commerce: receipt history at limit disables new charges
+PASS commerce: receipt history at limit keeps duplicate acknowledgement path
+PASS commerce: receipt history is preserved instead of purged
+PASS commerce: default receipt safety budget disables new charges at ten thousand
+PASS commerce: absent optional status flags keep ordinary purchases enabled
+PASS commerce: duplicate developer product IDs fail closed with warnings
+PASS commerce: ambiguous products and absent pass are unavailable
+PASS commerce: unconfigured VIP never performs an ownership request
+PASS commerce: duplicate purchase keys cannot select a different product
+PASS commerce: invalid promised currency cannot activate a product
+PASS commerce: nonfinite configured IDs never reach Roblox purchase prompts
+PASS commerce: credit-only products expose exact bankable reentries
+PASS commerce: mixed product is valid without a hardcoded Robux price
+PASS commerce: credit purchase receipt invokes atomic persistence
+PASS commerce: full credit wallet prevents new charges
+PASS commerce: full wallet still acknowledges existing credit receipt
+PASS commerce: credit capacity checked against exact package amount
+PASS commerce: invalid credit wallet cannot open a new charge
+PASS commerce: invalid configured credit amount remains disabled
+PASS commerce: invalid configured credit amount remains disabled
+PASS commerce: invalid configured credit amount remains disabled
+PASS commerce: invalid configured credit amount remains disabled
+PASS commerce: invalid configured credit amount remains disabled
+PASS commerce: invalid configured credit amount remains disabled
+All 104 commerce checks passed.
+PASS profiles: fresh published session owns a distinct profile datastore lock
+PASS profiles: first profile gets free default trail without paid credits
+PASS profiles: duplicate load reuses profile without another datastore operation
+PASS profiles: public payload never exposes receipts or session keys
+PASS profiles: server reward advances XP and wins
+PASS profiles: completed daily mission grants exact known reward
+PASS profiles: daily reward cannot be claimed twice
+PASS profiles: cosmetic purchase charges once and owns permanently
+PASS profiles: equipping owned trail is free
+PASS profiles: unverified VIP cannot equip VIP trail
+PASS profiles: server-verified VIP equips cosmetic without buying wins
+PASS profiles: trail indexes strictly validated
+PASS profiles: automatic reentry requires exact boolean
+PASS profiles: normal autosave renews lease and persists equipped cosmetic
+PASS profiles: public copies cannot mutate owned cosmetics
+PASS profiles: release save removes lock and disables this writer
+PASS profiles: live session lock is never stolen
+PASS profiles: blocked profile cannot charge purchases or consume paid credits
+PASS profiles: readonly fallback informs player
+PASS profiles: expired lease safely reacquires existing progress
+PASS profiles: Studio never reads or writes real player progress
+PASS profiles: Studio consumables never acknowledge payment
+PASS profiles: corrupted receipt history is retained and protected from overwrite
+PASS profiles: retrying UpdateAsync transform does not duplicate grant
+PASS profiles: same receipt replay is idempotent
+PASS profiles: changed product amounts cannot rewrite historical paid value
+PASS profiles: profile mutations blocked while atomic purchase yields
+PASS profiles: gameplay advances concurrently with atomic purchase
+PASS profiles: purchase receipts remain independent for each grant
+PASS profiles: later save persists concurrent rewards
+PASS profiles: lost purchase acknowledgment does not claim success
+PASS profiles: unknown purchase is reserved while durable receipt exists
+PASS profiles: unconfirmed purchase cannot consume credit or replace pending receipt
+PASS profiles: autosave merges committed receipt after lost acknowledgment
+PASS profiles: recovery clears busy purchase state
+PASS profiles: Roblox retry acknowledges recovered purchase exactly once
+PASS profiles: credit consumption is immediate and exactly one
+PASS profiles: credit consumption schedules durable save without yielding match
+PASS profiles: consumed credit persists and cannot return from receipt replay
+PASS profiles: free coins reserve room for in-flight paid value
+PASS profiles: over-cap grant never truncates paid benefit
+PASS profiles: first receipt fills configured history budget
+PASS profiles: full receipt history still acknowledges old receipt
+PASS profiles: full history keeps a new charge unresolved rather than deleting IDs
+PASS profiles: save rejects lost lock and disables writer
+PASS profiles: lost writer cannot grant product
+PASS profiles: throwing mutation cannot alter profile partially
+PASS profiles: explicitly rejected mutation is rolled back
+PASS profiles: departure persists progress and releases session
+PASS profiles: missing profiles have no personal payload
+PASS profiles: departure during load releases acquired session
+All 51 profiles checks passed.
+PASS rules: five distinct options contain exactly one target across 200 randomized rounds
+PASS rules: shuffle can place the correct image in every lane
+PASS rules: later rounds include a distinct nearby shade
+PASS rules: generated choices cannot mutate target or palette
+PASS rules: duplicate and malformed distractors do not create ambiguous answers
+PASS rules: insufficient unique distractors fail rather than display duplicate choices
+PASS rules: nonfinite target colors are rejected
+PASS rules: matching lane is correct
+PASS rules: different valid lane is wrong
+PASS rules: malformed lane selections are ignored
+PASS rules: eliminated player may use one credit during active or reveal phases
+PASS rules: credit cannot be consumed outside the active match window
+PASS rules: announced winner prevents any subsequent reentry
+PASS rules: active participant cannot consume a reentry
+PASS rules: queued reentry cannot be purchased or used twice
+PASS rules: one use per match includes the final
+PASS rules: spectator has no reentry entitlement
+PASS rules: survivors and queued reentries remain distinct
+PASS rules: empty match has no phantom participant
+PASS rules: two survivors trigger a race final immediately
+PASS rules: ordinary multi-player rounds continue before the round limit
+PASS rules: round cap forces a finite multi-player final
+All 22 Color Rush rule checks passed.
+PASS exactly 250 original character configurations
+PASS exactly 25 archetypes
+PASS dense IDs and all names unique
+PASS all target, skin and accent colors are RGB24
+PASS all entries have a supported target and palette mapping
+PASS configuration and nested color data cannot be mutated
+PASS all 25 families contain exactly ten variants
+PASS all variants differ geometrically and change at least three composition fields
+PASS target color distribution stays balanced
+PASS invalid IDs do not select characters
+PASS a caller cannot recolor the shared catalog
+Characters: 11 checks passed
+PASS mock-server: three ready players start the first normal stage
+PASS mock-server: all contenders are frozen at the same start during preview
+PASS mock-server: memorization preview lasts exactly two seconds
+PASS mock-server: running state has five options and never publishes the correct lane
+PASS mock-server: instant teleport to a gate cannot finish the stage
+PASS mock-server: late arrival waits without entering the running match
+PASS mock-server: gate callback from the lobby cannot select an answer
+PASS mock-server: client-supplied answer cannot replace a physical gate choice
+PASS mock-server: reentry product grants a durable banked credit
+PASS mock-server: three-credit product deposits exactly three credits
+PASS mock-server: wrong image eliminates immediately and returns player to lobby
+PASS mock-server: normal reentry reserves intent without immediately spending a credit
+PASS mock-server: all-wrong replay is free and restores the original active roster
+PASS mock-server: correct normal choices lock once while the match continues
+PASS mock-server: second gate contact cannot replace a committed correct choice or reward twice
+PASS mock-server: queued paid reentry joins the next stage and consumes one credit
+PASS mock-server: a second ordinary reentry is refused and its credit remains banked
+PASS mock-server: two surviving players enter a first-arrival final
+PASS mock-server: automatic final reentry uses exactly one of three credits without recursive consumption
+PASS mock-server: final reentry must run the distance again before selecting
+PASS mock-server: only one final opportunity is allowed even with more banked credits
+PASS mock-server: once the rival finishes all reentry offers close
+PASS mock-server: a purchase confirmed after the winning finish stays in the credit bank
+PASS mock-server: race declares the first correct final finisher and awards one victory
+PASS mock-server: spectator and eliminated participants cannot receive the winning reward
+PASS mock-server: public state excludes persistence receipt history and locking metadata
+PASS mock-server: actual shop action purchases and equips an earned-currency trail
+PASS mock-server: verified VIP creates its title and exclusive double trail without changing wins
+PASS mock-server: new match resets entries and two players can start without a full lobby
+PASS mock-server: two correct contacts in the same scheduler instant latch only the first finisher
+PASS mock-server: manual reentry after the winning contact cannot consume a banked credit
+PASS mock-server: same-frame rival contact cannot alter the winner or create another victory
+PASS mock-server: actual mission action grants the configured daily win reward
+PASS mock-server: claiming the same mission twice cannot duplicate currency
+PASS mock-server: opted-in normal reentry stays reserved until the next stage
+PASS mock-server: a queued player whose avatar died cannot lose a credit at stage transition
+PASS mock-server: final avatar death does not automatically consume a credit on an unusable character
+PASS mock-server: expired final closes reentry before eliminating remaining runners
+PASS mock-server: receipt confirmed after final timeout remains banked
+PASS mock-server: final without any correct finish is a draw with no invented winner
+PASS mock-server: new match gets one free all-wrong retry without using automatic paid credits
+PASS mock-server: exhausted all-wrong retry ends as a draw instead of selling a last-player victory
+All 42 real-server orchestration checks passed (limited mocks).
+Color Rush UI smoke checks: 42 passed (simulated engine).
+Color Rush portrait construction: 3527 checks passed across 250 characters (simulated values, not engine rendering).
+Building project 'ColorRush'
+Built project to ColorRush.rbxlx
+Place built: build/ColorRush.rbxlx
+Mocks do not execute the Roblox engine or real purchases.

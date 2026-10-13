@@ -1,0 +1,61 @@
+{
+  "brand": "COLOR RUSH",
+  "source": "OpenAI image generation",
+  "promotional_illustrations_not_gameplay_screenshots": true,
+  "images": [
+    {
+      "file": "banner.png",
+      "width": 1672,
+      "height": 941,
+      "bytes": 2604501,
+      "sha256": "937a2526f86ac4383c1facb66086bfed25bbdd329ca00a9ed47b6edf8905c19a",
+      "upload_to": "experience_thumbnail",
+      "original_generated_art": true
+    },
+    {
+      "file": "coins.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1978319,
+      "sha256": "b14a08932b0fd23001df04734fded7144b8d49e9341a6b1914e5f68b18065253",
+      "upload_to": "developer_product_coins",
+      "original_generated_art": true
+    },
+    {
+      "file": "icon.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 2591268,
+      "sha256": "cb6a9db93110bd444ba486c8fb8b8ec840e433dd0113043a668387df7c079e75",
+      "upload_to": "experience_icon",
+      "original_generated_art": true
+    },
+    {
+      "file": "revive.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 2030263,
+      "sha256": "5c9a23b77e01e4605726200927d7374b20e1744fab82d18e7f924fec7520e36c",
+      "upload_to": "developer_product_revive",
+      "original_generated_art": true
+    },
+    {
+      "file": "trail.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 2117545,
+      "sha256": "a14edb2fa5f8b8f8452b16b5ef0ce8f70b0df54f4af3e6edd8dcc87067fa8aba",
+      "upload_to": "promotional_cosmetic_trail_illustration_no_additional_pass",
+      "original_generated_art": true
+    },
+    {
+      "file": "vip.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 2310047,
+      "sha256": "55b7078fb678c7a0fa1c0ce41712496ca3c0d7cadda33187b120b7483ca0feb7",
+      "upload_to": "game_pass_vip",
+      "original_generated_art": true
+    }
+  ]
+}

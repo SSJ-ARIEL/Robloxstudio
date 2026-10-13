@@ -1,0 +1,2544 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <Color3 name="Ambient">
+        <R>0.35</R>
+        <G>0.4</G>
+        <B>0.55</B>
+      </Color3>
+      <float name="Brightness">2</float>
+      <float name="ClockTime">19</float>
+      <Color3 name="OutdoorAmbient">
+        <R>0.5</R>
+        <G>0.55</G>
+        <B>0.7</B>
+      </Color3>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="2">
+      <Properties>
+        <string name="Name">ColorRush</string>
+      </Properties>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">Characters</string>
+          <string name="Source"><![CDATA[-- Original, deterministic character catalog. No downloaded art or licensed characters.
+-- Kept free of engine types so the complete catalog can be checked by the Luau CLI.
+local Characters = {}
+
+local palette = {
+	{ 247, 77, 107 }, { 255, 160, 62 }, { 248, 213, 73 }, { 122, 218, 90 },
+	{ 44, 201, 151 }, { 54, 193, 218 }, { 69, 136, 240 }, { 111, 98, 224 },
+	{ 184, 103, 224 }, { 235, 106, 191 }, { 239, 132, 112 }, { 172, 198, 226 },
+}
+local archetypes = {
+	{ "robot", "Autómata", { 172, 192, 214 }, "Helmet", { "Núcleo", "Órbita", "Bisagra", "Tuerca", "Pulso", "Vector", "Bóveda", "Circuito", "Dínamo", "Módulo" } },
+	{ "alien", "Visitante", { 145, 218, 198 }, "Coat", { "Nimbo", "Zeta", "Quásar", "Nova", "Cometa", "Púlsar", "Lumen", "Vega", "Cenit", "Cosmo" } },
+	{ "fox", "Zorro", { 220, 135, 83 }, "Coat", { "Junco", "Bruma", "Cobre", "Duna", "Castaño", "Sendero", "Brezal", "Pinar", "Otoño", "Mirador" } },
+	{ "cat", "Gato", { 188, 179, 202 }, "Coat", { "Tiza", "Nube", "Ópalo", "Miga", "Ovillo", "Trébol", "Bigote", "Lino", "Sombra", "Mosaico" } },
+	{ "bear", "Oso", { 158, 119, 88 }, "Coat", { "Avellana", "Roble", "Tronco", "Miel", "Cedro", "Pardo", "Mora", "Bambú", "Musgo", "Bellota" } },
+	{ "rabbit", "Conejo", { 225, 215, 207 }, "Coat", { "Algodón", "Salto", "Pétalo", "Nabo", "Trebolín", "Copito", "Zanahoria", "Mimbre", "Nardo", "Alfalfa" } },
+	{ "frog", "Rana", { 107, 183, 130 }, "Coat", { "Juncal", "Charco", "Loto", "Rocío", "Nenúfar", "Estanque", "Gota", "Mangle", "Humedal", "Sauce" } },
+	{ "owl", "Búho", { 149, 133, 116 }, "Coat", { "Farol", "Vigía", "Noche", "Pluma", "Sabio", "Lucero", "Bosque", "Cálamo", "Estrella", "Campana" } },
+	{ "panda", "Panda", { 232, 227, 213 }, "Coat", { "Tallo", "Jade", "Brote", "Nébula", "Ladera", "Cumbre", "Tinta", "Calma", "Papiro", "Bambusal" } },
+	{ "penguin", "Pingüino", { 66, 80, 102 }, "Coat", { "Fiordo", "Copo", "Témpano", "Aurora", "Viento", "Escarcha", "Glaciar", "Polo", "Nevado", "Boreal" } },
+	{ "axolotl", "Ajolote", { 232, 180, 203 }, "Coat", { "Coral", "Burbuja", "Laguna", "Alga", "Perla", "Acuario", "Rizo", "Arrecife", "Concha", "Nácar" } },
+	{ "shark", "Tiburón", { 119, 158, 187 }, "Coat", { "Marea", "Oleaje", "Abisal", "Aleta", "Cresta", "Espuma", "Bahía", "Faro", "Cala", "Atolón" } },
+	{ "dragon", "Dragón", { 163, 173, 126 }, "Coat", { "Ascua", "Pedernal", "Ventisca", "Cripta", "Chispa", "Basalto", "Crisol", "Escama", "Cuarzo", "Bramido" } },
+	{ "golem", "Gólem", { 160, 160, 151 }, "Coat", { "Granito", "Mármol", "Estrato", "Cantera", "Guijarro", "Runa", "Sílex", "Pizarra", "Cristal", "Cimiento" } },
+	{ "mushroom", "Micelio", { 230, 211, 179 }, "Helmet", { "Espora", "Sotobosque", "Sombrilla", "Llovizna", "Honguito", "Helecho", "Madera", "Tierra", "Hojarasca", "Amanecer" } },
+	{ "astronaut", "Astronauta", { 185, 139, 112 }, "Coat", { "Horizonte", "Gravedad", "Satélite", "Crater", "Apogeo", "Galaxia", "Eclipse", "Tránsito", "Aster", "Zenit" } },
+	{ "knight", "Guardián", { 205, 167, 131 }, "Helmet", { "Escudo", "Almena", "Baluarte", "Lanza", "Fortín", "Emblema", "Bastión", "Torre", "Justa", "Acero" } },
+	{ "wizard", "Mago", { 169, 125, 101 }, "Coat", { "Sortilegio", "Pergamino", "Oráculo", "Arcano", "Sigilo", "Amuleto", "Espejo", "Astrolabio", "Runario", "Destello" } },
+	{ "chef", "Chef", { 218, 166, 125 }, "Coat", { "Canela", "Tomillo", "Vainilla", "Azafrán", "Pimienta", "Romero", "Cacao", "Comino", "Laurel", "Jengibre" } },
+	{ "diver", "Buzo", { 159, 110, 89 }, "Helmet", { "Profundo", "Inmersión", "Nautilo", "Sonda", "Muelle", "Boya", "Bajamar", "Estela", "Salitre", "Exploración" } },
+	{ "racer", "Piloto", { 204, 152, 118 }, "Helmet", { "Turbo", "Chicane", "Apex", "Sprint", "Curva", "Ráfaga", "Vértice", "Circuito", "Impulso", "Bandera" } },
+	{ "gardener", "Jardinero", { 187, 132, 100 }, "Coat", { "Semilla", "Huerto", "Surco", "Cosecha", "Flor", "Solana", "Raíz", "Abono", "Savia", "Regadera" } },
+	{ "inventor", "Inventor", { 212, 175, 145 }, "Coat", { "Engranaje", "Resorte", "Plano", "Bobina", "Palanca", "Probeta", "Telescopio", "Turbina", "Imán", "Fuelle" } },
+	{ "pirate", "Navegante", { 170, 123, 94 }, "Coat", { "Velero", "Timón", "Brújula", "Ancla", "Bitácora", "Barlovento", "Islote", "Cabo", "Bergantín", "Sextante" } },
+	{ "explorer", "Explorador", { 230, 181, 146 }, "Coat", { "Mapa", "Cañón", "Senda", "Liana", "Derrumbe", "Campamento", "Cordillera", "Travesía", "Expedición", "Oasis" } },
+}
+
+local function freezeDeep(value)
+	if type(value) ~= "table" then return value end
+	for _, child in pairs(value) do freezeDeep(child) end
+	return table.freeze(value)
+end
+
+Characters.All = {}
+for archetypeIndex, definition in ipairs(archetypes) do
+	for variant = 1, 10 do
+		local id = (archetypeIndex - 1) * 10 + variant
+		local hue = ((archetypeIndex * 5 + variant * 7 - 1) % #palette) + 1
+		local accent = palette[((hue + 4) % #palette) + 1]
+		local skin = definition[3]
+		local warmth = ((variant - 1) % 5 - 2) * 5
+		local character = {
+			Id = id, Name = definition[2] .. " " .. definition[5][variant],
+			Archetype = definition[1], Variant = variant, Hue = hue,
+			TargetPart = definition[4], TargetRGB = table.clone(palette[hue]),
+			SkinRGB = { math.clamp(skin[1] + warmth, 0, 255), math.clamp(skin[2] + warmth, 0, 255), math.clamp(skin[3] + warmth, 0, 255) },
+			AccentRGB = table.clone(accent),
+			-- Every variant changes silhouette/accessories, face and clothing geometry.
+			HeadgearStyle = variant, EyeStyle = ((variant - 1) % 5) + 1,
+			OutfitStyle = ((variant - 1) % 5) + 1, Hairstyle = ((variant - 1) % 6) + 1,
+			PoseStyle = ((variant - 1) % 4) + 1, DetailStyle = ((variant - 1) % 5) + 1,
+			BodyStyle = ((variant - 1) % 3) + 1,
+		}
+		Characters.All[id] = freezeDeep(character)
+	end
+end
+table.freeze(Characters.All)
+
+function Characters.get(id: any)
+	if type(id) ~= "number" or id ~= id or id % 1 ~= 0 then return nil end
+	return Characters.All[id]
+end
+
+Characters.Palette = freezeDeep(palette)
+Characters.ArchetypeCount = #archetypes
+return table.freeze(Characters)
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">Config</string>
+          <string name="Source"><![CDATA[local Config = {}
+Config.Version = "1.0.0"
+Config.Title = "Color Rush: Corre y Recuerda"
+Config.MinimumPlayers = 2
+Config.MaxParticipants = 20
+Config.Intermission = 18
+Config.PreviewSeconds = 2
+Config.RunSeconds = 12
+Config.FinalSeconds = 18
+Config.RevealSeconds = 4
+Config.ResultSeconds = 9
+Config.MaxNormalRounds = 7
+Config.MaxAllWrongRepeats = 1
+Config.MaxRevivesPerMatch = 1
+Config.MaxCoins = 100000000
+Config.MaxReviveCredits = 1000
+Config.MaxReceipts = 10000
+Config.DataStoreName = "ColorRush_Player_v1"
+Config.SaveInterval = 75
+Config.ParticipationCoins = 10
+Config.CorrectCoins = 8
+Config.WinnerCoins = 60
+Config.XPPerRound = 15
+Config.XPPerWin = 35
+Config.GateDistance = 14
+Config.MinimumTravelSeconds = 3.5
+Config.LaneX = { -28, -14, 0, 14, 28 }
+Config.DailyMissions = {
+	{ Key = "run3", Name = "Participa en 3 carreras", Metric = "Rounds", Target = 3, Reward = 30 },
+	{ Key = "correct8", Name = "Acierta 8 puertas", Metric = "Actions", Target = 8, Reward = 45 },
+	{ Key = "win1", Name = "Gana una carrera", Metric = "Wins", Target = 1, Reward = 60 },
+}
+Config.Trails = {
+	{ Name = "SIN ESTELA", Cost = 0, ColorRGB = { 90, 160, 255 }, Style = "none" },
+	{ Name = "MENTA", Cost = 60, ColorRGB = { 82, 232, 167 }, Style = "ribbon" },
+	{ Name = "SOLAR", Cost = 160, ColorRGB = { 255, 213, 68 }, Style = "ribbon" },
+	{ Name = "NEBULOSA", Cost = 350, ColorRGB = { 186, 127, 255 }, Style = "double" },
+	{ Name = "PRISMA VIP", Cost = 0, Access = "VIP", ColorRGB = { 214, 172, 255 }, Style = "prisma" },
+	{ Name = "COMETA", Cost = 650, ColorRGB = { 255, 141, 66 }, Style = "double" },
+	{ Name = "DIAMANTE", Cost = 1000, ColorRGB = { 115, 225, 255 }, Style = "double" },
+}
+-- Starting price recommendations only. Actual prices are set in Creator Hub.
+-- Configure FIVE ProductIds and ONE PassId belonging to this new experience.
+Config.Commerce = {
+	Products = {
+		{ Key = "revive1", Name = "1 crédito de reentrada", ProductId = 0, Coins = 0, Credits = 1, SuggestedPrice = 9, Description = "Un crédito guardado. Una reentrada por partida; no revoca una victoria." },
+		{ Key = "revive3", Name = "3 créditos de reentrada", ProductId = 0, Coins = 0, Credits = 3, SuggestedPrice = 25, Description = "Tres créditos para distintas partidas. El límite sigue siendo uno por partida." },
+		{ Key = "coins200", Name = "200 monedas", ProductId = 0, Coins = 200, Credits = 0, SuggestedPrice = 19, Description = "200 monedas para estelas cosméticas de resultado conocido." },
+		{ Key = "coins800", Name = "800 monedas", ProductId = 0, Coins = 800, Credits = 0, SuggestedPrice = 59, Description = "800 monedas para estelas cosméticas de resultado conocido." },
+		{ Key = "coins2000", Name = "2000 monedas", ProductId = 0, Coins = 2000, Credits = 0, SuggestedPrice = 99, Description = "2000 monedas para estelas cosméticas de resultado conocido." },
+	},
+	VIP = { Key = "vip", PassId = 0, Name = "VIP Prisma", SuggestedPrice = 79, Description = "Estela Prisma exclusiva y título VIP. No revela respuestas ni incluye reentradas ilimitadas." },
+}
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="5">
+        <Properties>
+          <string name="Name">Ledger</string>
+          <string name="Source"><![CDATA[-- Currency, reentry credits and their receipts always commit together.
+-- Never prune receipt IDs: old Roblox callbacks must remain idempotent.
+local Ledger = {}
+
+local function integer(value)
+	return type(value) == "number" and value == value and value >= 0
+		and value < math.huge and value % 1 == 0
+end
+
+local function copy(value)
+	if type(value) ~= "table" then return value end
+	local result = {}
+	for key, child in pairs(value) do result[key] = copy(child) end
+	return result
+end
+
+local function validGrant(value)
+	return type(value) == "table" and integer(value.Coins) and integer(value.Credits)
+		and value.Coins + value.Credits > 0
+end
+
+function Ledger.cleanReceipts(raw)
+	local result = {}
+	if type(raw) ~= "table" then return result end
+	for id, grant in pairs(raw) do
+		if type(id) == "string" and #id > 0 and #id <= 200 and validGrant(grant) then
+			result[id] = { Coins = grant.Coins, Credits = grant.Credits }
+		end
+	end
+	return result
+end
+
+function Ledger.validReceipts(raw)
+	if raw == nil then return true end
+	if type(raw) ~= "table" then return false end
+	for id, grant in pairs(raw) do
+		if type(id) ~= "string" or #id == 0 or #id > 200 or not validGrant(grant) then return false end
+	end
+	return true
+end
+
+function Ledger.merge(base, persisted, maxCoins, maxCredits)
+	if type(base) ~= "table" or not integer(base.Coins) or not integer(base.ReviveCredits)
+		or not Ledger.validReceipts(base.Receipts) then return nil end
+	if type(persisted) == "table" and not Ledger.validReceipts(persisted.Receipts) then return nil end
+	local result = copy(base)
+	result.Receipts = Ledger.cleanReceipts(base.Receipts)
+	for id, grant in pairs(Ledger.cleanReceipts(type(persisted) == "table" and persisted.Receipts or nil)) do
+		if result.Receipts[id] == nil then
+			result.Coins += grant.Coins
+			result.ReviveCredits += grant.Credits
+		end
+		result.Receipts[id] = grant
+	end
+	if result.Coins > maxCoins or result.ReviveCredits > maxCredits then return nil end
+	return result
+end
+
+function Ledger.grant(base, persisted, receiptId, grant, maxCoins, maxCredits)
+	if type(receiptId) ~= "string" or #receiptId == 0 or #receiptId > 200 or not validGrant(grant) then return nil end
+	local result = Ledger.merge(base, persisted, maxCoins, maxCredits)
+	if not result then return nil end
+	local receipts = Ledger.cleanReceipts(type(persisted) == "table" and persisted.Receipts or nil)
+	if receipts[receiptId] then return result, false end
+	if result.Receipts[receiptId] then return nil end -- unpersisted local IDs are not payment proof
+	if result.Coins + grant.Coins > maxCoins or result.ReviveCredits + grant.Credits > maxCredits then return nil end
+	result.Coins += grant.Coins
+	result.ReviveCredits += grant.Credits
+	result.Receipts[receiptId] = { Coins = grant.Coins, Credits = grant.Credits }
+	return result, true
+end
+
+function Ledger.reconcile(localData, committed, maxCoins, maxCredits)
+	local merged = Ledger.merge(localData, committed, maxCoins, maxCredits)
+	if not merged then return nil end
+	local recovered = { Coins = merged.Coins - localData.Coins, Credits = merged.ReviveCredits - localData.ReviveCredits }
+	localData.Coins, localData.ReviveCredits, localData.Receipts = merged.Coins, merged.ReviveCredits, merged.Receipts
+	return recovered
+end
+
+return Ledger
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">Portrait</string>
+          <string name="Source"><![CDATA[-- Original procedural portrait art. Models are local, anchored and never enter physics.
+-- Every answer renders the exact same geometry, lighting and camera; only the target changes.
+local Characters = require(script.Parent.Characters)
+local Portrait = {}
+local WHITE = Color3.fromRGB(243, 244, 235)
+local DARK = Color3.fromRGB(35, 43, 64)
+local GRAY = Color3.fromRGB(123, 137, 157)
+local GOLD = Color3.fromRGB(245, 210, 132)
+local function rgb(value)
+	return Color3.fromRGB(value[1], value[2], value[3])
+end
+
+function Portrait.build(character, overrideRGB, hideTarget)
+	assert(type(character) == "table" and character.Id, "A catalog character is required")
+	local model = Instance.new("Model")
+	model.Name = "Portrait_" .. character.Id
+	model:SetAttribute("CharacterId", character.Id)
+	model:SetAttribute("CharacterName", character.Name)
+	local skin, accent = rgb(character.SkinRGB), rgb(character.AccentRGB)
+	local target = if hideTarget then GRAY else rgb(overrideRGB or character.TargetRGB)
+	local coat = if character.TargetPart == "Coat" then target else accent
+	local helmet = if character.TargetPart == "Helmet" then target else accent
+	local archetype, variant = character.Archetype, character.Variant
+	local bodyWidth = ({ 1.7, 1.85, 1.6 })[character.BodyStyle]
+	local function make(name, size, position, color, shape, rotation)
+		local object = Instance.new(if shape == "Wedge" then "WedgePart" else "Part")
+		object.Name = name
+		object.Size = size
+		object.CFrame = CFrame.new(position) * (rotation or CFrame.identity)
+		object.Color = color
+		object.Material = Enum.Material.SmoothPlastic
+		object.Anchored, object.CanCollide, object.CanTouch, object.CanQuery = true, false, false, false
+		object.CastShadow = false
+		object.TopSurface, object.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+		if shape == "Ball" then object.Shape = Enum.PartType.Ball end
+		if shape == "Cylinder" then object.Shape = Enum.PartType.Cylinder end
+		object.Parent = model
+		return object
+	end
+	local function ball(name, x, y, z, sx, sy, sz, color, rotation)
+		return make(name, Vector3.new(sx, sy, sz), Vector3.new(x, y, z), color, "Ball", rotation)
+	end
+	local function block(name, x, y, z, sx, sy, sz, color, rotation)
+		return make(name, Vector3.new(sx, sy, sz), Vector3.new(x, y, z), color, nil, rotation)
+	end
+	local function wedge(name, x, y, z, sx, sy, sz, color, rotation)
+		return make(name, Vector3.new(sx, sy, sz), Vector3.new(x, y, z), color, "Wedge", rotation)
+	end
+	local function disk(name, x, y, z, radius, depth, color)
+		return make(name, Vector3.new(depth, radius, radius), Vector3.new(x, y, z), color, "Cylinder", CFrame.Angles(0, math.pi / 2, 0))
+	end
+	local angle = math.rad(({ 9, -8, 18, -16 })[character.PoseStyle])
+	for _, side in ipairs({ -1, 1 }) do
+		ball("Boot", side * 0.46, 0.44, 0.14, 0.68, 0.43, 0.97, DARK)
+		block("Trouser", side * 0.43, 0.94, 0, 0.55, 0.91, 0.66, DARK)
+		ball("BootTrim", side * 0.46, 0.60, 0.12, 0.64, 0.15, 0.85, accent)
+		ball("Sleeve", side * (bodyWidth / 2 + 0.23), 2.23, 0, 0.57, 1.25, 0.67, coat, CFrame.Angles(0, 0, side * angle))
+		ball("Glove", side * (bodyWidth / 2 + 0.31), 1.65, 0.10, 0.53, 0.52, 0.56, skin)
+	end
+	ball("TargetCoat", 0, 2.20, 0, bodyWidth, 1.84, 1.02, coat)
+	block("Hem", 0, 1.49, 0.06, bodyWidth - 0.12, 0.18, 0.82, DARK)
+	ball("Collar", 0, 2.98, 0.09, 0.86, 0.25, 0.96, WHITE)
+	block("Zip", 0, 2.16, 0.523, 0.05, 1.19, 0.035, DARK)
+	disk("Badge", -0.48, 2.53, 0.53, 0.25, 0.045, GOLD)
+	local outfit = character.OutfitStyle
+	if outfit == 1 then
+		for _, side in ipairs({ -1, 1 }) do block("Pocket", side * 0.48, 1.99, 0.50, 0.43, 0.29, 0.08, accent) end
+	elseif outfit == 2 then
+		block("Sash", 0, 2.30, 0.53, 0.17, 1.45, 0.06, accent, CFrame.Angles(0, 0, math.rad(28)))
+	elseif outfit == 3 then
+		for _, side in ipairs({ -1, 1 }) do block("ShoulderPanel", side * 0.6, 2.74, 0.40, 0.43, 0.18, 0.25, accent) end
+		block("Belt", 0, 1.82, 0.52, bodyWidth - 0.15, 0.11, 0.07, DARK)
+	elseif outfit == 4 then
+		for _, side in ipairs({ -1, 1 }) do block("Harness", side * 0.35, 2.19, 0.53, 0.10, 1.2, 0.055, accent) end
+		disk("Fastener", 0, 2.30, 0.56, 0.25, 0.04, WHITE)
+	else
+		block("Scarf", 0, 2.92, 0.48, 0.86, 0.23, 0.19, accent)
+		block("ScarfTail", 0.43, 2.52, 0.55, 0.22, 0.66, 0.07, accent, CFrame.Angles(0, 0, math.rad(-10)))
+	end
+	local headColor = if archetype == "robot" then helmet else skin
+	local headWidth = if archetype == "alien" or archetype == "frog" then 1.97 else 1.68
+	local headShape = if archetype == "robot" or archetype == "golem" then nil else "Ball"
+	make("Head", Vector3.new(headWidth, 1.5, 1.38), Vector3.new(0, 3.80, 0), headColor, headShape)
+	local faceZ = 0.68
+	if archetype == "robot" then
+		block("Display", 0, 3.89, 0.71, 1.36, 0.68, 0.08, DARK)
+		for _, side in ipairs({ -1, 1 }) do disk("AudioRing", side * 0.87, 3.81, 0, 0.52, 0.12, GOLD) end
+	elseif archetype == "penguin" then
+		ball("FaceMask", 0, 3.72, 0.53, 1.41, 1.11, 0.39, WHITE)
+		ball("Belly", 0, 2.08, 0.51, 0.81, 0.97, 0.13, WHITE)
+	elseif archetype == "panda" then
+		for _, side in ipairs({ -1, 1 }) do ball("EyePatch", side * 0.36, 3.92, 0.67, 0.55, 0.63, 0.17, DARK, CFrame.Angles(0, 0, side * 0.18)) end
+	end
+	local eyeY = if archetype == "frog" then 4.18 else 3.94
+	for _, side in ipairs({ -1, 1 }) do
+		local x = side * (if archetype == "alien" then 0.44 else 0.34)
+		local style = character.EyeStyle
+		if archetype == "frog" then ball("EyeSocket", x, eyeY, 0.54, 0.68, 0.66, 0.55, skin) end
+		if style == 4 then
+			block("Eye", x, eyeY, faceZ + 0.095, 0.28, 0.075, 0.07, if archetype == "robot" then WHITE else DARK, CFrame.Angles(0, 0, side * 0.12))
+		else
+			local eyeWidth = if style == 2 then 0.29 else 0.35
+			local eyeHeight = if style == 3 then 0.43 else 0.35
+			ball("EyeWhite", x, eyeY, faceZ, eyeWidth, eyeHeight, 0.15, WHITE)
+			ball("Pupil", x + (if style == 5 then 0.04 else 0), eyeY, faceZ + 0.074, 0.16, 0.21, 0.07, DARK)
+			ball("EyeSpark", x - 0.03, eyeY + 0.055, faceZ + 0.107, 0.055, 0.055, 0.018, WHITE)
+		end
+		block("Brow", x, eyeY + 0.26, faceZ - 0.018, 0.32, 0.065, 0.06, DARK, CFrame.Angles(0, 0, side * (0.07 + style * 0.035)))
+	end
+	local muzzleOffset = if ({ bear = true, panda = true, fox = true, cat = true, shark = true })[archetype] then 0.18 else 0
+	ball("Nose", 0, 3.70, faceZ + 0.043 + muzzleOffset, 0.19, 0.14, 0.13, if archetype == "robot" then GOLD else DARK)
+	ball("Smile", 0, 3.49, faceZ - 0.002 + muzzleOffset, 0.31, 0.075, 0.06, DARK)
+	for _, side in ipairs({ -1, 1 }) do
+		if archetype == "fox" or archetype == "cat" then
+			local height = if archetype == "fox" then 0.9 else 0.65
+			wedge("Ear", side * 0.62, 4.58, 0.01, 0.62, height, 0.54, skin, CFrame.Angles(0, 0, side * math.rad(-12)))
+			wedge("InnerEar", side * 0.62, 4.58, 0.31, 0.34, height * 0.65, 0.07, accent)
+			ball("Muzzle", side * 0.18, 3.59, 0.64, 0.42, 0.31, 0.30, WHITE)
+			for line = 1, 2 do block("Whisker", side * 0.60, 3.62 - line * 0.08, 0.66, 0.37, 0.025, 0.035, DARK, CFrame.Angles(0, 0, side * line * 0.09)) end
+		elseif archetype == "bear" or archetype == "panda" then
+			ball("Ear", side * 0.73, 4.46, -0.01, 0.64, 0.66, 0.45, if archetype == "panda" then DARK else skin)
+			ball("InnerEar", side * 0.73, 4.46, 0.20, 0.32, 0.33, 0.06, accent)
+			ball("Muzzle", 0, 3.53, 0.63, 0.77, 0.51, 0.36, WHITE)
+		elseif archetype == "rabbit" then
+			ball("Ear", side * 0.48, 4.95, -0.10, 0.43, 1.70, 0.42, skin, CFrame.Angles(0, 0, side * (0.08 + variant * 0.016)))
+			ball("InnerEar", side * 0.48, 4.99, 0.10, 0.20, 1.15, 0.045, accent, CFrame.Angles(0, 0, side * 0.1))
+		elseif archetype == "owl" then
+			wedge("Tuft", side * 0.62, 4.51, 0.0, 0.56, 0.59, 0.57, skin)
+			disk("FacialDisk", side * 0.36, 3.93, 0.61, 0.70, 0.03, GOLD)
+		elseif archetype == "axolotl" then
+			for branch = 1, 3 do
+				local rotation = CFrame.Angles(0, 0, side * math.rad((branch - 2) * 32))
+				ball("Gill", side * (0.93 + branch * 0.04), 3.61 + branch * 0.20, 0.03, 0.79, 0.18, 0.29, accent, rotation)
+			end
+		elseif archetype == "dragon" then
+			wedge("Horn", side * 0.58, 4.57, -0.09, 0.34, 0.76, 0.40, GOLD, CFrame.Angles(0, 0, side * 0.21))
+			wedge("Wing", side * 1.17, 2.40, -0.35, 1.09, 1.54, 0.12, accent, CFrame.Angles(0, 0, side * 0.32))
+		elseif archetype == "golem" then
+			block("StoneBrow", side * 0.38, 4.26, 0.68, 0.63, 0.20, 0.22, skin, CFrame.Angles(0, 0, side * 0.12))
+			wedge("Crystal", side * 0.9, 2.92, 0.04, 0.44, 0.70, 0.48, accent)
+		end
+	end
+	if archetype == "owl" or archetype == "penguin" then
+		wedge("Beak", 0, 3.65, 0.83, 0.35, 0.32, 0.42, GOLD, CFrame.Angles(math.pi, 0, 0))
+	elseif archetype == "alien" then
+		for _, side in ipairs({ -1, 1 }) do
+			block("Antenna", side * 0.54, 4.65, 0, 0.075, 0.51 + variant * 0.015, 0.075, skin, CFrame.Angles(0, 0, side * 0.28))
+			ball("AntennaTip", side * 0.62, 4.94 + variant * 0.008, 0, 0.23, 0.23, 0.23, accent)
+		end
+	elseif archetype == "shark" then
+		wedge("DorsalFin", 0, 4.60, -0.23, 0.38, 0.9, 0.83, skin)
+		ball("Snout", 0, 3.66, 0.65, 1.01, 0.54, 0.41, WHITE)
+		for tooth = -1, 1 do wedge("Tooth", tooth * 0.15, 3.47, 0.81, 0.11, 0.15, 0.05, WHITE, CFrame.Angles(0, 0, math.pi)) end
+	elseif archetype == "mushroom" then
+		ball("TargetCap", 0, 4.52, -0.05, 2.64, 1.06, 1.94, helmet)
+		ball("CapRim", 0, 4.17, -0.05, 2.59, 0.18, 1.86, WHITE)
+		for spot = -2, 2 do ball("CapSpot", spot * 0.40, 4.65 + (2 - math.abs(spot)) * 0.11, 0.63, 0.24, 0.15, 0.10, WHITE) end
+	end
+	local human = ({ astronaut = true, knight = true, wizard = true, chef = true, diver = true, racer = true, gardener = true, inventor = true, pirate = true, explorer = true })[archetype]
+	if human and character.TargetPart ~= "Helmet" then
+		local hair = skin:Lerp(DARK, 0.72)
+		for lock = -2, 2 do
+			local long = if character.Hairstyle == 2 or character.Hairstyle == 5 then 0.49 else 0.25
+			ball("HairLock", lock * 0.25, 4.42 - (math.abs(lock) * 0.03), 0.13 + character.Hairstyle * 0.025, 0.58, long, 0.70, hair, CFrame.Angles(0, 0, lock * 0.10))
+		end
+	end
+	if archetype == "astronaut" then
+		ball("SpaceHelmet", 0, 3.86, -0.11, 2.13, 1.98, 1.71, WHITE)
+		ball("Visor", 0, 3.85, 0.62, 1.69, 1.29, 0.17, DARK)
+		block("ChestConsole", 0, 2.19, 0.57, 0.72, 0.43, 0.12, WHITE)
+		for light = -1, 1 do disk("ConsoleLight", light * 0.20, 2.21, 0.65, 0.11, 0.025, accent) end
+	elseif archetype == "knight" then
+		ball("TargetHelmet", 0, 3.91, -0.06, 1.98, 1.83, 1.61, helmet)
+		block("VisorSlit", 0, 3.96, 0.74, 1.33, 0.23, 0.08, DARK)
+		block("NoseGuard", 0, 3.76, 0.80, 0.15, 0.61, 0.10, helmet)
+		ball("Plume", 0, 4.84, -0.13, 0.40, 0.60 + variant * 0.016, 0.85, accent)
+		for _, side in ipairs({ -1, 1 }) do ball("Pauldron", side * 1.02, 2.82, 0, 0.70, 0.53, 0.94, GOLD) end
+	elseif archetype == "wizard" then
+		ball("HatBrim", 0, 4.39, 0, 2.34, 0.17, 1.79, accent)
+		wedge("HatCrown", 0, 4.97, -0.16, 1.23, 1.17, 1.03, accent, CFrame.Angles(0, 0, math.rad((variant - 5) * 2)))
+		disk("HatRune", 0, 4.81, 0.41, 0.27, 0.03, GOLD)
+	elseif archetype == "chef" then
+		block("HatBand", 0, 4.53, 0, 1.65, 0.28, 1.25, WHITE)
+		for cloud = -1, 1 do ball("Toque", cloud * 0.46, 4.91 + (cloud == 0 and 0.18 or 0), 0, 0.93, 0.79, 1.19, WHITE) end
+		block("Apron", 0, 1.94, 0.55, 0.88, 0.87, 0.07, WHITE)
+	elseif archetype == "diver" then
+		ball("TargetDiveHelmet", 0, 3.86, -0.07, 2.09, 1.99, 1.73, helmet)
+		disk("WindowRing", 0, 3.88, 0.81, 1.16, 0.08, GOLD)
+		disk("Window", 0, 3.88, 0.865, 0.96, 0.04, DARK)
+		for _, side in ipairs({ -1, 1 }) do disk("Valve", side * 0.82, 3.62, 0.63, 0.22, 0.04, WHITE) end
+		ball("AirTank", 0, 2.32, -0.58, 1.36, 1.74, 0.57, GOLD)
+	elseif archetype == "racer" then
+		ball("TargetRaceHelmet", 0, 3.91, -0.06, 1.97, 1.83, 1.57, helmet)
+		ball("RaceVisor", 0, 3.97, 0.75, 1.53, 0.69, 0.11, DARK)
+		block("VisorShine", -0.33, 4.10, 0.81, 0.42, 0.04, 0.025, WHITE, CFrame.Angles(0, 0, 0.12))
+	elseif archetype == "gardener" then
+		ball("HatBrim", 0, 4.42, 0, 2.38, 0.20, 1.85, GOLD)
+		ball("HatCrown", 0, 4.66, -0.05, 1.64, 0.64, 1.31, GOLD)
+		block("HatBand", 0, 4.58, 0.62, 1.36, 0.13, 0.10, accent)
+	elseif archetype == "explorer" then
+		ball("SafariBrim", 0, 4.43, 0.05, 2.06, 0.20, 1.62, GOLD)
+		ball("SafariCrown", 0, 4.70, -0.06, 1.51, 0.77, 1.38, GOLD)
+		block("SafariRidge", 0, 4.91, 0.05, 0.15, 0.22, 1.15, WHITE)
+		disk("Compass", 0.44, 2.74, 0.60, 0.31, 0.06, DARK)
+		wedge("CompassNeedle", 0.44, 2.78, 0.64, 0.10, 0.14, 0.02, WHITE)
+	elseif archetype == "inventor" then
+		for _, side in ipairs({ -1, 1 }) do
+			disk("GoggleRim", side * 0.34, 4.05, 0.81, 0.52, 0.07, GOLD)
+			disk("GoggleGlass", side * 0.34, 4.05, 0.855, 0.36, 0.04, DARK)
+		end
+		block("GoggleBridge", 0, 4.05, 0.84, 0.15, 0.06, 0.05, GOLD)
+	elseif archetype == "pirate" then
+		ball("HatBrim", 0, 4.42, -0.04, 2.38, 0.24, 1.71, DARK)
+		wedge("Tricorn", 0, 4.74, -0.15, 1.87, 0.64, 1.03, DARK)
+		disk("CompassEmblem", 0, 4.68, 0.43, 0.26, 0.04, GOLD)
+	end
+	-- Ten visibly different kit combinations for every archetype. Palette alone is never a variant.
+	local kit = character.HeadgearStyle
+	if kit == 1 then
+		ball("SideRibbon", 0.85, 4.12, 0.26, 0.49, 0.18, 0.20, accent, CFrame.Angles(0, 0, 0.3))
+	elseif kit == 2 then
+		block("EarComms", -0.88, 3.87, 0.24, 0.22, 0.57, 0.41, GOLD)
+		block("CommsMic", -0.69, 3.50, 0.75, 0.38, 0.08, 0.08, DARK)
+	elseif kit == 3 then
+		for _, side in ipairs({ -1, 1 }) do ball("Mantle", side * 1.0, 2.88, -0.14, 0.57, 0.28, 0.75, accent) end
+	elseif kit == 4 then
+		block("Notebook", -0.86, 1.66, 0.54, 0.47, 0.68, 0.15, accent, CFrame.Angles(0, 0, -0.16))
+		block("BookSpine", -1.05, 1.66, 0.62, 0.08, 0.68, 0.05, GOLD)
+	elseif kit == 5 then
+		for _, side in ipairs({ -1, 1 }) do ball("Cuff", side * (bodyWidth / 2 + 0.31), 1.84, 0.12, 0.56, 0.17, 0.64, GOLD) end
+		ball("Charm", 0.42, 2.72, 0.61, 0.19, 0.24, 0.08, WHITE)
+	elseif kit == 6 then
+		block("SatchelStrap", -0.50, 2.17, 0.56, 0.14, 1.39, 0.05, GOLD, CFrame.Angles(0, 0, -0.23))
+		block("Satchel", -0.76, 1.70, 0.64, 0.66, 0.59, 0.27, accent)
+	elseif kit == 7 then
+		ball("Brooch", 0.43, 2.80, 0.55, 0.41, 0.31, 0.10, WHITE)
+		ball("BroochCore", 0.43, 2.80, 0.61, 0.19, 0.19, 0.04, accent)
+	elseif kit == 8 then
+		block("FlagPole", 1.20, 2.37, -0.25, 0.055, 2.75, 0.055, GOLD)
+		wedge("Pennant", 1.45, 3.59, -0.25, 0.52, 0.65, 0.08, accent)
+	elseif kit == 9 then
+		ball("Gadget", 0.98, 1.64, 0.41, 0.52, 0.51, 0.26, DARK)
+		disk("GadgetDial", 0.98, 1.64, 0.57, 0.26, 0.03, GOLD)
+	else
+		block("Cape", 0, 2.19, -0.57, 1.54, 1.72, 0.10, accent)
+		for _, side in ipairs({ -1, 1 }) do ball("CapeClasp", side * 0.57, 2.87, 0.46, 0.22, 0.22, 0.12, GOLD) end
+	end
+	return model
+end
+
+function Portrait.mount(viewport, characterId, overrideRGB, hideTarget)
+	local character = Characters.get(characterId)
+	assert(character, "Unknown character ID")
+	local previous = viewport:FindFirstChild("PortraitWorld")
+	if previous then previous:Destroy() end
+	local oldCamera = viewport:FindFirstChild("PortraitCamera")
+	if oldCamera then oldCamera:Destroy() end
+	local world = Instance.new("WorldModel")
+	world.Name, world.Parent = "PortraitWorld", viewport
+	local model = Portrait.build(character, overrideRGB, hideTarget)
+	model.Parent = world
+	local camera = Instance.new("Camera")
+	camera.Name = "PortraitCamera"
+	camera.FieldOfView = 34
+	camera.CFrame = CFrame.lookAt(Vector3.new(0, 3.10, 10.4), Vector3.new(0, 2.95, 0))
+	camera.Parent = viewport
+	viewport.CurrentCamera = camera
+	viewport.Ambient = Color3.fromRGB(185, 190, 206)
+	viewport.LightColor = Color3.fromRGB(255, 248, 235)
+	viewport.LightDirection = Vector3.new(-0.5, -0.8, -1)
+	return model
+end
+
+return Portrait
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="7">
+        <Properties>
+          <string name="Name">Progression</string>
+          <string name="Source"><![CDATA[-- Deterministic daily goals and lifetime XP. Call with server-owned counters
+-- and an explicit Unix time; clients never decide rewards or progress.
+local Progression = {}
+
+local METRICS = { "Rounds", "Actions", "Wins" }
+local MAX_COUNT = 1000000
+local LEVEL_XP = 100
+local MAX_LEVEL = 1000
+local MAX_XP = (MAX_LEVEL - 1) * LEVEL_XP
+
+local function whole(value, maximum)
+	if type(value) ~= "number" or value ~= value or value <= 0 or value == math.huge then
+		return 0
+	end
+	return math.min(math.floor(value), maximum)
+end
+
+local function currentDay(now)
+	return math.floor(whole(now, 100000000000) / 86400)
+end
+
+local function missions(config)
+	if type(config) == "table" and type(config.DailyMissions) == "table" then
+		return config.DailyMissions
+	end
+	return {}
+end
+
+local function validMission(mission)
+	if type(mission) ~= "table" or type(mission.Key) ~= "string" or mission.Key == "" then
+		return false
+	end
+	local recognized = mission.Metric == "Rounds" or mission.Metric == "Actions" or mission.Metric == "Wins"
+	return recognized and whole(mission.Target, MAX_COUNT) > 0
+end
+
+function Progression.clean(raw, now, config)
+	local progress = {
+		XP = 0,
+		Day = currentDay(now),
+		Counts = { Rounds = 0, Actions = 0, Wins = 0 },
+		Claimed = {},
+	}
+	if type(raw) ~= "table" then
+		return progress
+	end
+	progress.XP = whole(raw.XP, MAX_XP)
+	-- Unknown, past or future dates cannot carry daily rewards into today.
+	if raw.Day ~= progress.Day then
+		return progress
+	end
+	if type(raw.Counts) == "table" then
+		for _, metric in ipairs(METRICS) do
+			progress.Counts[metric] = whole(raw.Counts[metric], MAX_COUNT)
+		end
+	end
+	if type(raw.Claimed) == "table" then
+		for _, mission in ipairs(missions(config)) do
+			if validMission(mission) and raw.Claimed[mission.Key] == true then
+				progress.Claimed[mission.Key] = true
+			end
+		end
+	end
+	return progress
+end
+
+local function refresh(progress, now, config)
+	local clean = Progression.clean(progress, now, config)
+	if type(progress) ~= "table" then
+		return clean
+	end
+	progress.XP = clean.XP
+	progress.Day = clean.Day
+	progress.Counts = clean.Counts
+	progress.Claimed = clean.Claimed
+	return progress
+end
+
+function Progression.record(progress, delta, now, config)
+	progress = refresh(progress, now, config)
+	delta = if type(delta) == "table" then delta else {}
+	local increments = {}
+	for _, metric in ipairs(METRICS) do
+		increments[metric] = whole(delta[metric], MAX_COUNT)
+		progress.Counts[metric] = math.min(progress.Counts[metric] + increments[metric], MAX_COUNT)
+	end
+	local roundXP = if type(config) == "table" then whole(config.XPPerRound, MAX_XP) else 0
+	local winXP = if type(config) == "table" then whole(config.XPPerWin, MAX_XP) else 0
+	progress.XP = math.min(progress.XP + increments.Rounds * roundXP + increments.Wins * winXP, MAX_XP)
+	return progress
+end
+
+function Progression.claim(progress, key, now, config)
+	progress = refresh(progress, now, config)
+	if type(key) ~= "string" then
+		return 0, "Misión inválida."
+	end
+	for _, mission in ipairs(missions(config)) do
+		if validMission(mission) and mission.Key == key then
+			if progress.Claimed[key] then
+				return 0, "Ya recogiste esta recompensa hoy."
+			end
+			if progress.Counts[mission.Metric] < whole(mission.Target, MAX_COUNT) then
+				return 0, "Completa la misión para recoger su recompensa."
+			end
+			local reward = whole(mission.Reward, MAX_COUNT)
+			if reward <= 0 then
+				return 0, "La recompensa no está disponible."
+			end
+			progress.Claimed[key] = true
+			return reward, "Recompensa de misión recogida."
+		end
+	end
+	return 0, "Misión inválida."
+end
+
+function Progression.view(progress, now, config)
+	local clean = Progression.clean(progress, now, config)
+	local level = math.min(math.floor(clean.XP / LEVEL_XP) + 1, MAX_LEVEL)
+	local view = {
+		XP = clean.XP,
+		Level = level,
+		NextLevelXP = LEVEL_XP,
+		LevelProgress = if level == MAX_LEVEL then LEVEL_XP else clean.XP % LEVEL_XP,
+		Missions = {},
+	}
+	for _, mission in ipairs(missions(config)) do
+		if validMission(mission) then
+			local target = whole(mission.Target, MAX_COUNT)
+			local count = clean.Counts[mission.Metric]
+			table.insert(view.Missions, {
+				Key = mission.Key,
+				Name = if type(mission.Name) == "string" then mission.Name else mission.Key,
+				Count = math.min(count, target),
+				Target = target,
+				Reward = whole(mission.Reward, MAX_COUNT),
+				Claimed = clean.Claimed[mission.Key] == true,
+				Complete = count >= target,
+			})
+		end
+	end
+	return view
+end
+
+return Progression
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="8">
+        <Properties>
+          <string name="Name">Rules</string>
+          <string name="Source"><![CDATA[-- Pure selection and race rules; clients never determine eliminations or wins.
+local Rules = {}
+local function validRGB(rgb)
+	if type(rgb) ~= "table" then return false end
+	for i = 1, 3 do
+		if type(rgb[i]) ~= "number" or rgb[i] ~= rgb[i] or rgb[i] % 1 ~= 0 or rgb[i] < 0 or rgb[i] > 255 then return false end
+	end
+	return true
+end
+local function key(rgb) return table.concat(rgb, ",") end
+local function distance(a, b)
+	return math.sqrt((a[1] - b[1]) ^ 2 + (a[2] - b[2]) ^ 2 + (a[3] - b[3]) ^ 2)
+end
+
+function Rules.options(target, palette, difficulty, randomIndex)
+	assert(validRGB(target), "Invalid target color")
+	local candidates, seen = {}, { [key(target)] = true }
+	for _, rgb in ipairs(palette) do
+		if validRGB(rgb) and not seen[key(rgb)] then
+			seen[key(rgb)] = true
+			table.insert(candidates, table.clone(rgb))
+		end
+	end
+	assert(#candidates >= 4, "At least four unique distractors required")
+	table.sort(candidates, function(a, b)
+		local da, db = distance(target, a), distance(target, b)
+		if da == db then return key(a) < key(b) end
+		return da > db
+	end)
+	local choices = { table.clone(target) }
+	local pool = {}
+	-- Later rounds include a nearby shade, while preserving exactly one match.
+	if difficulty >= 4 then table.insert(choices, table.clone(candidates[#candidates])); table.remove(candidates) end
+	for i = 1, math.max(4, math.ceil(#candidates * 0.75)) do
+		if candidates[i] then table.insert(pool, candidates[i]) end
+	end
+	while #choices < 5 do
+		local index = randomIndex(1, #pool)
+		table.insert(choices, table.remove(pool, index))
+	end
+	for i = #choices, 2, -1 do
+		local j = randomIndex(1, i)
+		choices[i], choices[j] = choices[j], choices[i]
+	end
+	local correct = nil
+	for i, rgb in ipairs(choices) do if key(rgb) == key(target) then correct = i end end
+	return choices, correct
+end
+
+function Rules.classify(choice, correct)
+	if type(choice) ~= "number" or choice % 1 ~= 0 or choice < 1 or choice > 5 then return "ignored" end
+	return choice == correct and "correct" or "wrong"
+end
+
+function Rules.eligibleRevive(entry, phase, winnerDeclared, maxRevives)
+	return entry ~= nil and entry.Alive == false and entry.QueuedRevive ~= true
+		and (entry.RevivesUsed or 0) < maxRevives and winnerDeclared ~= true
+		and (phase == "RUN" or phase == "REVEAL")
+end
+
+function Rules.count(entries)
+	local alive, queued = 0, 0
+	for _, entry in pairs(entries) do
+		if entry.Alive then alive += 1 elseif entry.QueuedRevive then queued += 1 end
+	end
+	return alive, queued
+end
+
+function Rules.isFinal(alive, round, maxNormalRounds)
+	return alive == 2 or round > maxNormalRounds
+end
+
+return Rules
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="9">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="10">
+      <Properties>
+        <string name="Name">ColorRushServer</string>
+      </Properties>
+      <Item class="ModuleScript" referent="11">
+        <Properties>
+          <string name="Name">Commerce</string>
+          <string name="Source"><![CDATA[-- Server-owned, deterministic Robux purchases. Never grant from prompt events.
+-- Persistence is deliberately delegated: currency, reentry credits and receipt ID must commit in
+-- the same UpdateAsync before PersistentGrant returns true.
+local Commerce = {}
+
+local function positiveInteger(value)
+	return type(value) == "number" and value == value and value > 0
+		and value <= 9007199254740991 and value % 1 == 0
+end
+
+local function nonnegativeInteger(value)
+	return value == 0 or positiveInteger(value)
+end
+
+local function validKey(value)
+	return type(value) == "string" and #value > 0 and #value <= 80
+end
+
+function Commerce.new(deps)
+	assert(type(deps) == "table", "Commerce requires dependencies")
+	assert(type(deps.GetProfile) == "function", "Commerce requires GetProfile")
+	assert(type(deps.PersistentGrant) == "function", "Commerce requires atomic PersistentGrant")
+	local config = deps.Config or {}
+	local settings = type(config.Commerce) == "table" and config.Commerce or {}
+	local marketplace, players = deps.MarketplaceService, deps.Players
+	local decision = deps.PurchaseDecision or Enum.ProductPurchaseDecision
+	local clock = deps.Clock or os.clock
+	local warnMessage = deps.Warn or warn
+	local notify = deps.Notify or function() end
+	local refresh = deps.Refresh or function() end
+	local maxCoins = positiveInteger(config.MaxCoins) and config.MaxCoins or 100000000
+	local maxCredits = positiveInteger(config.MaxReviveCredits) and config.MaxReviveCredits or 1000
+	local maxReceipts = positiveInteger(config.MaxReceipts) and config.MaxReceipts or 10000
+	local products, productByKey, productById = {}, {}, {}
+	local keyCounts, idCounts = {}, {}
+	local lastRequests, pending = {}, {}
+	local started = false
+	local controller = {}
+
+	for _, raw in ipairs(type(settings.Products) == "table" and settings.Products or {}) do
+		if type(raw) == "table" and validKey(raw.Key) then
+			local item = {
+				Key = raw.Key,
+				Kind = "Product",
+				Name = type(raw.Name) == "string" and raw.Name or raw.Key,
+				Description = type(raw.Description) == "string" and raw.Description or "Monedas para cosméticos de resultado conocido.",
+				ProductId = raw.ProductId,
+				Coins = if raw.Coins == nil then 0 else raw.Coins,
+				Credits = if raw.Credits == nil then 0 else raw.Credits,
+			}
+			table.insert(products, item)
+			keyCounts[item.Key] = (keyCounts[item.Key] or 0) + 1
+			if positiveInteger(item.ProductId) then
+				idCounts[item.ProductId] = (idCounts[item.ProductId] or 0) + 1
+			end
+		end
+	end
+	for _, item in ipairs(products) do
+		item.Valid = positiveInteger(item.ProductId) and nonnegativeInteger(item.Coins) and nonnegativeInteger(item.Credits)
+			and item.Coins + item.Credits > 0 and item.Credits <= maxCredits and item.Coins <= maxCoins and keyCounts[item.Key] == 1 and idCounts[item.ProductId] == 1
+		if item.Valid then
+			productById[item.ProductId], productByKey[item.Key] = item, item
+		elseif keyCounts[item.Key] ~= 1 or (positiveInteger(item.ProductId) and idCounts[item.ProductId] ~= 1) then
+			warnMessage("Color Rush: producto desactivado por ID o clave duplicados: " .. item.Key)
+		elseif item.ProductId ~= nil and item.ProductId ~= 0 then
+			warnMessage("Color Rush: configuración de producto inválida: " .. item.Key)
+		end
+	end
+	local rawPass = type(settings.VIP) == "table" and settings.VIP or {}
+	local pass = {
+		Key = validKey(rawPass.Key) and rawPass.Key or "vip",
+		Kind = "Pass",
+		Name = type(rawPass.Name) == "string" and rawPass.Name or "VIP Prisma",
+		Description = type(rawPass.Description) == "string" and rawPass.Description or "Distintivo y efectos cosméticos permanentes; no cambia las rondas.",
+		PassId = rawPass.PassId,
+		Valid = positiveInteger(rawPass.PassId),
+	}
+
+	local function online(player)
+		return player ~= nil and positiveInteger(player.UserId)
+			and players:GetPlayerByUserId(player.UserId) == player
+	end
+
+	local function loaded(player)
+		if not online(player) then return nil end
+		local record = deps.GetProfile(player)
+		return record and record.Ready ~= false and record or nil
+	end
+
+	local function purchaseBusy(record)
+		return record and (record.PendingPaid ~= nil or record.UncertainReceipt ~= nil
+			or record.LastSaveFailed == true or record.Leaving == true or record.Saving == true)
+	end
+
+	local function hasReceiptRoom(record)
+		local receipts = record and record.Data and record.Data.Receipts
+		if type(receipts) ~= "table" then return true end
+		local count = 0
+		for _ in pairs(receipts) do
+			count += 1
+			if count >= maxReceipts then return false end
+		end
+		return true
+	end
+
+	local function roomForProduct(record, product)
+		local coins = record and record.Data and record.Data.Coins
+		local credits = record and record.Data and (record.Data.ReviveCredits or 0)
+		return not purchaseBusy(record) and hasReceiptRoom(record)
+			and type(coins) == "number" and coins == coins and coins >= 0
+			and coins <= maxCoins - product.Coins and type(credits) == "number" and credits == credits
+			and credits >= 0 and credits <= maxCredits - product.Credits
+	end
+
+	local function reject(player, message)
+		pcall(notify, player, message)
+		return false, message
+	end
+
+	function controller.getCatalog(player)
+		local record, result = loaded(player), {}
+		for _, product in ipairs(products) do
+			table.insert(result, {
+				Key = product.Key, Kind = "Product", Name = product.Name,
+				Description = product.Description, Coins = product.Coins, Credits = product.Credits,
+				Id = positiveInteger(product.ProductId) and product.ProductId or 0,
+				Available = product.Valid and record ~= nil and record.Writable == true and roomForProduct(record, product),
+				Owned = false,
+			})
+		end
+		table.insert(result, {
+			Key = pass.Key, Kind = "Pass", Name = pass.Name, Description = pass.Description,
+			Id = positiveInteger(pass.PassId) and pass.PassId or 0,
+			Available = pass.Valid and record ~= nil,
+			Owned = record ~= nil and record.VIP == true,
+		})
+		return result
+	end
+
+	function controller.refreshPasses(player)
+		local record = loaded(player)
+		if not record then return false, "Tu perfil todavía no está disponible." end
+		if not pass.Valid then
+			record.VIP, record.VIPKnown = false, true
+			return true
+		end
+		local ok, owns = pcall(function()
+			return marketplace:UserOwnsGamePassAsync(player.UserId, pass.PassId)
+		end)
+		if not ok or type(owns) ~= "boolean" then
+			return false, "Roblox no pudo confirmar tu pase. Intenta de nuevo más tarde."
+		end
+		-- A player may leave or obtain another profile while the API yields.
+		if loaded(player) ~= record then return false, "Tu sesión cambió." end
+		record.VIP, record.VIPKnown = owns, true
+		pcall(refresh, player)
+		return true
+	end
+
+	function controller.requestPurchase(player, kind, key)
+		local record = loaded(player)
+		if not record then return reject(player, "Espera a que termine de cargar tu perfil.") end
+		if (kind ~= "Product" and kind ~= "Pass") or not validKey(key) then
+			return reject(player, "Compra no válida.")
+		end
+		local now, userId = clock(), player.UserId
+		if lastRequests[userId] and now - lastRequests[userId] < 3 then
+			return false, "Espera un momento antes de abrir otra compra."
+		end
+		if pending[userId] and now - pending[userId].At < 90 then
+			return false, "Termina o cierra la compra que tienes abierta."
+		end
+		local id, item
+		if kind == "Product" then
+			item = productByKey[key]
+			if not item then return reject(player, "Este producto todavía no está configurado.") end
+			if record.Writable ~= true then
+				return reject(player, "Las compras requieren guardado activo. No se cobran productos en esta sesión.")
+			end
+			if purchaseBusy(record) then
+				return reject(player, "Estamos confirmando tu progreso o una compra anterior. Espera antes de comprar otra vez.")
+			end
+			if not hasReceiptRoom(record) then
+				return reject(player, "Este perfil alcanzó el límite seguro de compras. Puedes seguir jugando y usar tus monedas.")
+			end
+			if not roomForProduct(record, item) then
+				return reject(player, "Usa algunas monedas o reentradas antes de comprar otro paquete.")
+			end
+			id = item.ProductId
+		else
+			if key ~= pass.Key or not pass.Valid then
+				return reject(player, "Este pase todavía no está configurado.")
+			end
+			-- Ownership lookup yields too: reserve before it, not just before
+			-- PromptGamePassPurchase, to prevent simultaneous pass requests.
+			lastRequests[userId] = now
+			pending[userId] = { Kind = kind, Id = pass.PassId, At = now }
+			local verified, message = controller.refreshPasses(player)
+			if not verified then
+				pending[userId] = nil
+				return reject(player, message)
+			end
+			if record.VIP == true then
+				pending[userId] = nil
+				return reject(player, "Ya tienes el pase VIP Prisma.")
+			end
+			id = pass.PassId
+		end
+		-- Reserve before a yielding platform prompt, so overlapping remotes cannot
+		-- open multiple prompts. Only configured server IDs reach Marketplace.
+		lastRequests[userId] = now
+		pending[userId] = { Kind = kind, Id = id, At = now }
+		local ok = pcall(function()
+			if kind == "Product" then
+				marketplace:PromptProductPurchase(player, id)
+			else
+				marketplace:PromptGamePassPurchase(player, id)
+			end
+		end)
+		if not ok then
+			pending[userId] = nil
+			return reject(player, "Roblox no pudo abrir la compra. Intenta más tarde.")
+		end
+		return true, "Compra abierta en Roblox."
+	end
+
+	function controller.start()
+		if started then return end
+		started = true
+		marketplace.ProcessReceipt = function(receipt)
+			if type(receipt) ~= "table" or not positiveInteger(receipt.ProductId)
+				or not positiveInteger(receipt.PlayerId) or type(receipt.PurchaseId) ~= "string"
+				or #receipt.PurchaseId == 0 or #receipt.PurchaseId > 200 then
+				return decision.NotProcessedYet
+			end
+			local product = productById[receipt.ProductId]
+			if not product then return decision.NotProcessedYet end
+			local player = players:GetPlayerByUserId(receipt.PlayerId)
+			local record = loaded(player)
+			if not record or record.Writable ~= true then return decision.NotProcessedYet end
+			local ok, committed, message = pcall(deps.PersistentGrant, player, receipt, product)
+			if not ok or committed ~= true then return decision.NotProcessedYet end
+			-- Refresh failures cannot undo a receipt that already committed durably.
+			pcall(refresh, player)
+			if type(message) == "string" and #message > 0 then pcall(notify, player, message) end
+			return decision.PurchaseGranted
+		end
+		marketplace.PromptProductPurchaseFinished:Connect(function(userId, productId)
+			local request = pending[userId]
+			if request and request.Kind == "Product" and request.Id == productId then
+				pending[userId] = nil
+			end
+			-- Closing the prompt is never proof of payment. No rewards here.
+		end)
+		marketplace.PromptGamePassPurchaseFinished:Connect(function(player, passId)
+			if not pass.Valid or passId ~= pass.PassId or not online(player) then return end
+			local request = pending[player.UserId]
+			if request and request.Kind == "Pass" and request.Id == passId then pending[player.UserId] = nil end
+			local verified, message = controller.refreshPasses(player)
+			if not verified then pcall(notify, player, message) end
+		end)
+		players.PlayerRemoving:Connect(function(player)
+			lastRequests[player.UserId], pending[player.UserId] = nil, nil
+		end)
+	end
+
+	return controller
+end
+
+return Commerce
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Script" referent="12">
+        <Properties>
+          <string name="Name">Main</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
+local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local PhysicsService = game:GetService("PhysicsService")
+local shared = ReplicatedStorage.ColorRush
+local Config = require(shared.Config)
+local Characters = require(shared.Characters)
+local Rules = require(shared.Rules)
+local Ledger = require(shared.Ledger)
+local Progression = require(shared.Progression)
+local Profiles = require(script.Parent.Profiles)
+local Commerce = require(script.Parent.Commerce)
+
+local remotes = Instance.new("Folder")
+remotes.Name, remotes.Parent = "Remotes", shared
+local stateEvent = Instance.new("RemoteEvent")
+stateEvent.Name, stateEvent.Parent = "State", remotes
+local actionEvent = Instance.new("RemoteEvent")
+actionEvent.Name, actionEvent.Parent = "Action", remotes
+
+local profiles, commerce, requestRevive
+local entries, loading, lastActions = {}, {}, {}
+local match, round = nil, nil
+local closing, matchCounter = false, 0
+local rng = Random.new()
+local state = { Phase = "LOBBY", Seconds = 0, Message = "Preparando los portales...", Round = 0, RunnerCount = 0 }
+local startPosition, lobbyPosition = Vector3.new(0, 8, 50), Vector3.new(0, 9, 145)
+
+pcall(function() PhysicsService:RegisterCollisionGroup("ColorRushRunners") end)
+PhysicsService:CollisionGroupSetCollidable("ColorRushRunners", "ColorRushRunners", false)
+
+local function root(player)
+	return player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+end
+local function usableCharacter(player)
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	return root(player) ~= nil and humanoid ~= nil and humanoid.Health > 0
+end
+local function teleport(player, position, freeze)
+	local r = root(player)
+	if not r then return false end
+	r.Anchored = freeze == true
+	r.AssemblyLinearVelocity, r.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
+	player.Character:PivotTo(CFrame.new(position))
+	return true
+end
+local function personal(player, extra)
+	if not player.Parent then return end
+	local payload, entry = table.clone(state), entries[player]
+	payload.Participating = entry ~= nil
+	payload.Alive = entry ~= nil and entry.Alive == true
+	payload.Eliminated = entry ~= nil and not entry.Alive
+	payload.QueuedRevive = entry ~= nil and entry.QueuedRevive == true
+	payload.SelectedChoice = entry and entry.SelectedChoice or nil
+	payload.CanRevive = Rules.eligibleRevive(entry, state.Phase, match ~= nil and match.Winner ~= nil, Config.MaxRevivesPerMatch)
+		and not (round and round.Final and round.Closed) and not (entry and entry.ReviveBusy)
+	if profiles then
+		payload.Profile = profiles.public(player)
+		payload.Progression = profiles.progression(player)
+		local record = profiles.get(player)
+		payload.Persistence = record and record.Writable and (record.LastSaveFailed and "GUARDADO PENDIENTE" or "GUARDADO ACTIVO") or "PROGRESO DE ESTA SESIÓN"
+	end
+	payload.Catalog = commerce and commerce.getCatalog(player) or {}
+	if extra then for key, value in pairs(extra) do payload[key] = value end end
+	stateEvent:FireClient(player, payload)
+end
+local function broadcast()
+	local alive, queued = Rules.count(entries)
+	state.RunnerCount = alive + queued
+	for _, player in ipairs(Players:GetPlayers()) do personal(player) end
+end
+
+local function cosmetic(player)
+	local record, r = profiles and profiles.get(player), root(player)
+	if not record or not r then return end
+	for _, name in ipairs({ "RushTrail", "RushTrail2", "RushLeft", "RushRight", "RushHigh", "RushLow", "RushVIP" }) do
+		local old = r:FindFirstChild(name)
+		if old then old:Destroy() end
+	end
+	local selected = Config.Trails[record.Data.SelectedTrail] or Config.Trails[1]
+	if selected.Access == "VIP" and not record.VIP then selected = Config.Trails[1] end
+	if selected.Style ~= "none" then
+		local a, b = Instance.new("Attachment"), Instance.new("Attachment")
+		a.Name, a.Position, a.Parent = "RushLeft", Vector3.new(-0.9, -0.8, 0), r
+		b.Name, b.Position, b.Parent = "RushRight", Vector3.new(0.9, -0.8, 0), r
+		local trail = Instance.new("Trail")
+		trail.Name, trail.Attachment0, trail.Attachment1 = "RushTrail", a, b
+		trail.Lifetime, trail.FaceCamera, trail.LightEmission = 0.45, true, 0.8
+		trail.Color = ColorSequence.new(Color3.fromRGB(table.unpack(selected.ColorRGB)))
+		trail.Parent = r
+		if selected.Style == "double" or selected.Style == "prisma" then
+			local high, low = Instance.new("Attachment"), Instance.new("Attachment")
+			high.Name, high.Position, high.Parent = "RushHigh", Vector3.new(0, 0.5, 0), r
+			low.Name, low.Position, low.Parent = "RushLow", Vector3.new(0, -1.1, 0), r
+			local extra = trail:Clone()
+			extra.Name, extra.Attachment0, extra.Attachment1, extra.Parent = "RushTrail2", high, low, r
+		end
+		if selected.Style == "prisma" then
+			trail.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 110, 170)),
+				ColorSequenceKeypoint.new(0.5, Color3.fromRGB(105, 224, 250)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(215, 145, 255)),
+			})
+		end
+	end
+	if record.VIP then
+		local tag = Instance.new("BillboardGui")
+		tag.Name, tag.Size, tag.StudsOffset = "RushVIP", UDim2.fromOffset(130, 28), Vector3.new(0, 4, 0)
+		tag.MaxDistance, tag.Parent = 75, r
+		local t = Instance.new("TextLabel")
+		t.Size, t.BackgroundTransparency = UDim2.fromScale(1, 1), 1
+		t.Text, t.TextScaled, t.Font = "VIP PRISMA", true, Enum.Font.GothamBold
+		t.TextColor3, t.Parent = Color3.fromRGB(220, 175, 255), tag
+	end
+end
+local function stats(player)
+	local record = profiles and profiles.get(player)
+	local folder = player:FindFirstChild("leaderstats")
+	if record and folder then
+		folder.Monedas.Value, folder.Victorias.Value = record.Data.Coins, record.Data.Wins
+	end
+end
+local function refresh(player)
+	stats(player)
+	cosmetic(player)
+	local record, entry = profiles and profiles.get(player), entries[player]
+	if requestRevive and record and entry and record.Data.AutoRevive and record.Data.ReviveCredits > 0
+		and Rules.eligibleRevive(entry, state.Phase, match ~= nil and match.Winner ~= nil, Config.MaxRevivesPerMatch) then
+		requestRevive(player, true)
+	end
+	personal(player)
+end
+profiles = Profiles.new({
+	Config = Config, Players = Players, DataStoreService = DataStoreService,
+	RunService = RunService, HttpService = HttpService, Ledger = Ledger, Progression = Progression,
+	Notify = function(player, message) personal(player, { Toast = message }) end,
+	Refresh = refresh,
+})
+commerce = Commerce.new({
+	Config = Config, Players = Players, MarketplaceService = MarketplaceService,
+	GetProfile = profiles.get, PersistentGrant = profiles.grantReceipt,
+	Notify = function(player, message) personal(player, { Toast = message }) end,
+	Refresh = refresh,
+})
+profiles.start()
+commerce.start()
+
+local world = Instance.new("Folder")
+world.Name, world.Parent = "ColorRushWorld", workspace
+local gates = Instance.new("Folder")
+gates.Name, gates.Parent = "Gates", world
+local function part(parent, name, size, pos, color, material)
+	local p = Instance.new("Part")
+	p.Name, p.Size, p.Position, p.Anchored = name, size, pos, true
+	p.Material, p.Color = material or Enum.Material.SmoothPlastic, color or Color3.fromRGB(24, 32, 55)
+	p.TopSurface, p.BottomSurface, p.Parent = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth, parent
+	return p
+end
+local function label(target, content, size)
+	local gui = Instance.new("BillboardGui")
+	gui.Size, gui.StudsOffset, gui.MaxDistance = size or UDim2.fromOffset(310, 65), Vector3.new(0, 4, 0), 140
+	gui.Parent = target
+	local text = Instance.new("TextLabel")
+	text.Size, text.BackgroundTransparency = UDim2.fromScale(1, 1), 1
+	text.Font, text.TextScaled, text.TextWrapped = Enum.Font.GothamBold, true, true
+	text.TextColor3, text.Text, text.Parent = Color3.new(1, 1, 1), content, gui
+end
+part(world, "Plaza", Vector3.new(98, 3, 76), Vector3.new(0, 3, 145))
+part(world, "Pista", Vector3.new(86, 3, 140), Vector3.new(0, 3, 0))
+local spawn = Instance.new("SpawnLocation")
+spawn.Name, spawn.Anchored, spawn.Neutral = "LobbySpawn", true, true
+spawn.Size, spawn.Position, spawn.Duration = Vector3.new(8, 1, 8), Vector3.new(0, 5, 145), 0
+spawn.Color, spawn.Parent = Color3.fromRGB(89, 169, 255), world
+workspace.FallenPartsDestroyHeight = -60
+label(part(world, "Título", Vector3.new(1, 1, 1), Vector3.new(0, 12, 177)), "COLOR RUSH\nCorre y recuerda")
+label(part(world, "Ayuda", Vector3.new(1, 1, 1), Vector3.new(-30, 7, 150)), "2 segundos para memorizar\n5 puertas · 1 respuesta\nFinal: primera llegada correcta")
+local shop = part(world, "Tienda", Vector3.new(9, 3, 9), Vector3.new(30, 6, 149), Color3.fromRGB(182, 115, 255), Enum.Material.Neon)
+label(shop, "TIENDA\nEstelas · VIP · Créditos")
+local shopPrompt = Instance.new("ProximityPrompt")
+shopPrompt.ActionText, shopPrompt.ObjectText = "Abrir", "Tienda"
+shopPrompt.MaxActivationDistance, shopPrompt.RequiresLineOfSight, shopPrompt.Parent = 13, false, shop
+shopPrompt.Triggered:Connect(function(player) personal(player, { OpenShop = true }) end)
+local reference = part(world, "ReferenceBoard", Vector3.new(26, 16, 1), Vector3.new(0, 32, -66))
+reference.CanCollide, reference.Transparency = false, 1
+for i, x in ipairs(Config.LaneX) do
+	local hue = Color3.fromRGB(table.unpack(Characters.Palette[i]))
+	part(world, "Carril" .. i, Vector3.new(11, 0.2, 80), Vector3.new(x, 4.6, 0), hue)
+	part(gates, "Gate" .. i, Vector3.new(11, 12, 5), Vector3.new(x, 10, -40), hue, Enum.Material.Neon).Transparency = 0.65
+	local gate = gates:FindFirstChild("Gate" .. i)
+	gate.CanCollide = false
+	local board = part(gates, "Board" .. i, Vector3.new(10, 10, 1), Vector3.new(x, 14, -51))
+	board.Transparency, board.CanCollide = 1, false
+	label(part(world, "Número" .. i, Vector3.new(1, 1, 1), Vector3.new(x, 6, -35)), tostring(i), UDim2.fromOffset(55, 40))
+	for _, dx in ipairs({ -6, 6 }) do
+		part(world, "Marco", Vector3.new(0.6, 15, 1), Vector3.new(x + dx, 11, -42), hue, Enum.Material.Neon)
+	end
+	part(world, "Arco", Vector3.new(12.5, 0.6, 1), Vector3.new(x, 18.5, -42), hue, Enum.Material.Neon)
+end
+for _, x in ipairs({ -43, 43 }) do
+	part(world, "Baranda", Vector3.new(1, 4, 140), Vector3.new(x, 6, 0), Color3.fromRGB(70, 128, 185))
+end
+for i = 1, 6 do
+	local x = i % 2 == 0 and 54 or -54
+	local island = part(world, "Isla orbital", Vector3.new(10 + i, 7, 14), Vector3.new(x, -3, -50 + i * 24))
+	part(world, "Cristal", Vector3.new(3, 8 + i, 3), island.Position + Vector3.new(0, 8, 0), Color3.fromRGB(88 + i * 18, 130, 235), Enum.Material.Neon)
+end
+
+requestRevive = function(player, automatic)
+	local entry, record = entries[player], profiles.get(player)
+	if not Rules.eligibleRevive(entry, state.Phase, match ~= nil and match.Winner ~= nil, Config.MaxRevivesPerMatch)
+		or entry.ReviveBusy or (round and round.Final and (round.Closed or (round.Deadline and os.clock() >= round.Deadline))) then
+		if not automatic then personal(player, { Toast = "La reentrada ya no está disponible. Tus créditos se conservan." }) end
+		return false
+	end
+	if not record or record.Data.ReviveCredits < 1 then
+		if not automatic then personal(player, { Toast = "Necesitas un crédito. También puedes esperar gratis la siguiente partida.", OpenShop = true }) end
+		return false
+	end
+	if not usableCharacter(player) then
+		if not automatic then personal(player, { Toast = "Espera a que reaparezca tu personaje. El crédito se conserva." }) end
+		return false
+	end
+	if record.Saving or record.LastSaveFailed or record.UncertainReceipt then return false end
+	if round and round.Final then
+		-- No yielding operation can occur between eligibility, credit use and entry.
+		entry.ReviveBusy = true
+		local ok, message = profiles.consumeRevive(player)
+		entry.ReviveBusy = false
+		if not ok then if not automatic then personal(player, { Toast = message }) end; return false end
+		entry.RevivesUsed += 1
+		entry.Alive, entry.SelectedChoice, entry.LastGate = true, nil, os.clock()
+		entry.RunBeganAt = os.clock()
+		teleport(player, startPosition, false)
+		personal(player, { Toast = "Crédito usado. Una nueva oportunidad antes de que haya ganador." })
+	else
+		-- Reserve intent, not currency: if everyone misses, the free replay
+		-- must not consume a paid credit that was unnecessary.
+		entry.QueuedRevive = true
+		personal(player, { Toast = "Reentrada preparada para la siguiente etapa. El crédito aún no se ha usado." })
+	end
+	broadcast()
+	return true
+end
+local function eliminate(player, reason, skipAuto)
+	local entry = entries[player]
+	if not entry or not entry.Alive then return end
+	entry.Alive, entry.SelectedChoice = false, nil
+	teleport(player, lobbyPosition, false)
+	personal(player, { Toast = reason or "Eliminado. Puedes esperar gratis la siguiente partida." })
+	local record = profiles.get(player)
+	if not skipAuto and record and record.Data.AutoRevive then requestRevive(player, true) end
+	broadcast()
+end
+local function declareWinner(player)
+	if not match or match.Winner then return false end
+	match.Winner = player -- latch before rewards or any presentation callback
+	profiles.reward(player, Config.WinnerCoins, 1, 0, 0)
+	stats(player)
+	return true
+end
+
+for i = 1, 5 do
+	local gate = gates:FindFirstChild("Gate" .. i)
+	gate.Touched:Connect(function(hit)
+		local character = hit:FindFirstAncestorOfClass("Model")
+		local player = character and Players:GetPlayerFromCharacter(character)
+		local entry, r = player and entries[player], player and root(player)
+		if state.Phase ~= "RUN" or not round or round.Closed or not match or match.Winner or not entry or not entry.Alive or entry.SelectedChoice or not r then return end
+		if round.Deadline and os.clock() >= round.Deadline then return end
+		if os.clock() - (entry.RunBeganAt or os.clock()) < Config.MinimumTravelSeconds then return end
+		local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+		if not humanoid or humanoid.Health <= 0 or (r.Position - gate.Position).Magnitude > Config.GateDistance then return end
+		if os.clock() - (entry.LastGate or 0) < 0.35 then return end
+		entry.LastGate = os.clock()
+		if not entry.Contributed then
+			entry.Contributed = true
+			-- Save participation in the profile immediately, even if the player
+			-- disconnects during the reveal/results presentation.
+			profiles.reward(player, Config.ParticipationCoins, 0, 1, 0)
+		end
+		local result = Rules.classify(i, round.Correct)
+		if result == "wrong" then
+			eliminate(player, "Color incorrecto. Has quedado eliminado de esta etapa.")
+		elseif result == "correct" then
+			entry.SelectedChoice = i
+			if round.Final then declareWinner(player) end
+			profiles.reward(player, Config.CorrectCoins, 0, 0, 1)
+			teleport(player, Vector3.new(Config.LaneX[i], 8, -43), true)
+			personal(player, { Toast = round.Final and "¡Primera llegada correcta!" or "¡Correcto! Espera la siguiente etapa." })
+			broadcast()
+		end
+	end)
+end
+
+local function onCharacter(player, character)
+	local r = character:WaitForChild("HumanoidRootPart", 10)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not r or not humanoid then return end
+	local function collision(object)
+		if object:IsA("BasePart") then object.CollisionGroup = "ColorRushRunners" end
+	end
+	for _, object in ipairs(character:GetDescendants()) do collision(object) end
+	character.DescendantAdded:Connect(collision)
+	humanoid.WalkSpeed, humanoid.JumpPower = 20, 48
+	if entries[player] and entries[player].Alive then eliminate(player, "Reaparición: espera o usa una reentrada disponible.", true) end
+	teleport(player, lobbyPosition, false)
+	refresh(player)
+	humanoid.Died:Connect(function() eliminate(player, "Has caído. Tus créditos siguen disponibles si la partida continúa.") end)
+end
+local function onPlayer(player)
+	if loading[player] or profiles.get(player) then return end
+	loading[player] = true
+	player.CharacterAdded:Connect(function(character) onCharacter(player, character) end)
+	if player.Character then task.spawn(onCharacter, player, player.Character) end
+	profiles.load(player)
+	loading[player] = nil
+	if not player.Parent then profiles.remove(player); return end
+	local board = Instance.new("Folder")
+	board.Name, board.Parent = "leaderstats", player
+	for _, name in ipairs({ "Monedas", "Victorias" }) do
+		local value = Instance.new("IntValue")
+		value.Name, value.Parent = name, board
+	end
+	refresh(player)
+	task.spawn(function() commerce.refreshPasses(player); personal(player) end)
+end
+Players.PlayerAdded:Connect(onPlayer)
+for _, player in ipairs(Players:GetPlayers()) do task.spawn(onPlayer, player) end
+Players.PlayerRemoving:Connect(function(player)
+	entries[player], loading[player], lastActions[player] = nil, nil, nil
+	profiles.remove(player)
+end)
+actionEvent.OnServerEvent:Connect(function(player, action, value)
+	local now = os.clock()
+	if now - (lastActions[player] or 0) < 0.3 then return end
+	lastActions[player] = now
+	if action == "Sync" then personal(player); return end
+	if not profiles.get(player) then return end
+	local ok, message
+	if action == "ShopBuy" and type(value) == "table" then commerce.requestPurchase(player, value.Kind, value.Key); return
+	elseif action == "UseRevive" then requestRevive(player, false); return
+	elseif action == "Trail" then ok, message = profiles.trail(player, value)
+	elseif action == "AutoRevive" then ok, message = profiles.autoRevive(player, value)
+	elseif action == "ClaimMission" then ok, message = profiles.claim(player, value)
+	else return end
+	if ok then refresh(player) end
+	personal(player, { Toast = message })
+end)
+game:BindToClose(function() closing = true; profiles.close() end)
+
+local function waitPhase(seconds)
+	for remaining = seconds, 1, -1 do state.Seconds = remaining; broadcast(); task.wait(1); if closing then break end end
+end
+local function readyPlayers()
+	local ready = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if profiles.get(player) and humanoid and humanoid.Health > 0 and root(player) then table.insert(ready, player) end
+	end
+	return ready
+end
+
+while not closing do
+	entries, match, round = {}, nil, nil
+	state = { Phase = "LOBBY", Message = "Memoriza el color y corre a su imagen. Necesitamos al menos dos jugadores.", Seconds = 0, Round = 0, RunnerCount = 0 }
+	while #readyPlayers() < Config.MinimumPlayers and not closing do broadcast(); task.wait(1) end
+	if closing then break end
+	state.Message = "La carrera está por comenzar. Configura tu estela y tus créditos si quieres."
+	waitPhase(Config.Intermission)
+	local ready = readyPlayers()
+	if #ready < Config.MinimumPlayers then continue end
+	matchCounter += 1
+	match = { Id = tostring(matchCounter), Winner = nil, SeenCharacters = {}, Repeats = 0 }
+	local first = (matchCounter - 1) * Config.MaxParticipants % #ready
+	for i = 1, math.min(#ready, Config.MaxParticipants) do
+		local player = ready[(first + i - 1) % #ready + 1]
+		entries[player] = { Alive = true, QueuedRevive = false, RevivesUsed = 0, Contributed = false, LastGate = 0 }
+	end
+	local roundNumber = 0
+	while not match.Winner and not closing do
+		local alive = Rules.count(entries)
+		if alive == 0 then break end
+		if alive == 1 then
+			for player, entry in pairs(entries) do if entry.Alive then declareWinner(player) end end
+			break
+		end
+		roundNumber += 1
+		local characterId
+		repeat characterId = rng:NextInteger(1, #Characters.All) until not match.SeenCharacters[characterId]
+		match.SeenCharacters[characterId] = true
+		local colors, correct = Rules.options(Characters.get(characterId).TargetRGB, Characters.Palette, roundNumber, function(a, b) return rng:NextInteger(a, b) end)
+		round = { Correct = correct, Final = Rules.isFinal(alive, roundNumber, Config.MaxNormalRounds), Roster = {} }
+		state = { Phase = "PREVIEW", Message = "MEMORIZA el color de la ropa o el casco. Tienes dos segundos.", Seconds = Config.PreviewSeconds,
+			Round = roundNumber, MatchId = match.Id, Final = round.Final, CharacterId = characterId, Colors = colors, RunnerCount = alive }
+		for i = 1, 5 do
+			gates:FindFirstChild("Gate" .. i).Color = Color3.fromRGB(125, 135, 155)
+			world:FindFirstChild("Carril" .. i).Color = Color3.fromRGB(75, 85, 105)
+		end
+		for player, entry in pairs(entries) do
+			entry.SelectedChoice = nil
+			if entry.Alive then
+				round.Roster[player] = true
+				if not teleport(player, startPosition, true) then entry.Alive = false end
+			end
+		end
+		waitPhase(Config.PreviewSeconds)
+		state.Phase = "RUN"
+		for i, color in ipairs(colors) do
+			gates:FindFirstChild("Gate" .. i).Color = Color3.fromRGB(table.unpack(color))
+			world:FindFirstChild("Carril" .. i).Color = Color3.fromRGB(table.unpack(color))
+		end
+		state.Message = round.Final and "FINAL: gana la primera llegada a la imagen correcta. Una sola reentrada por partida." or "CORRE a la imagen correcta. Una elección por etapa."
+		for player, entry in pairs(entries) do
+			if entry.Alive and root(player) then root(player).Anchored = false; entry.RunBeganAt = os.clock() end
+		end
+		local deadline = os.clock() + (round.Final and Config.FinalSeconds or Config.RunSeconds)
+		round.Deadline = deadline
+		local displayed = -1
+		while os.clock() < deadline and not match.Winner and not closing do
+			local seconds = math.ceil(deadline - os.clock())
+			if seconds ~= displayed then displayed = seconds; state.Seconds = seconds; broadcast() end
+			for player, entry in pairs(entries) do
+				if entry.Alive and not entry.SelectedChoice then
+					local r = root(player)
+					if not r or r.Position.Y < 0 then eliminate(player, "Has caído. Espera o usa un crédito disponible.") end
+				end
+			end
+			task.wait(0.15)
+		end
+		-- After the winner latch, no automatic revival or credit use is eligible.
+		round.Closed = true
+		if not match.Winner then
+			for player, entry in pairs(entries) do
+				if entry.Alive and not entry.SelectedChoice then eliminate(player, "Terminó el tiempo para escoger.") end
+			end
+		end
+		state.Phase, state.CorrectChoice, state.Seconds = "REVEAL", correct, Config.RevealSeconds
+		state.Message = match.Winner and (match.Winner.DisplayName .. " llegó primero a la imagen correcta.") or "La puerta " .. correct .. " tenía el color original."
+		broadcast()
+		waitPhase(Config.RevealSeconds)
+		if match.Winner then break end
+		local survivors = Rules.count(entries)
+		if survivors == 0 and not round.Final and match.Repeats < Config.MaxAllWrongRepeats then
+			match.Repeats += 1
+			for player in pairs(round.Roster) do
+				local entry = entries[player]
+				if entry and player.Parent and usableCharacter(player) then entry.Alive, entry.QueuedRevive = true, false end
+			end
+			state.Message = "Todos fallaron. Repetimos una etapa gratis: no se consumen créditos."
+			broadcast(); task.wait(2)
+		elseif not round.Final and survivors > 0 then
+			for player, entry in pairs(entries) do
+				if entry.QueuedRevive then
+					local ok = usableCharacter(player) and profiles.consumeRevive(player)
+					entry.QueuedRevive = false
+					if ok then entry.Alive = true; entry.RevivesUsed += 1
+					else personal(player, { Toast = "No se pudo activar la reentrada. El crédito se conserva." }) end
+				end
+			end
+		else
+			-- A final with no correct finish is a draw; no winner is fabricated.
+			for _, entry in pairs(entries) do entry.QueuedRevive = false end
+			break
+		end
+	end
+	state.Phase, state.Seconds = "RESULTS", Config.ResultSeconds
+	state.WinnerName = match.Winner and match.Winner.DisplayName or nil
+	state.Message = match.Winner and ("¡" .. match.Winner.DisplayName .. " gana la carrera!") or "Carrera sin ganador. La próxima partida comienza pronto."
+	for player, entry in pairs(entries) do
+		teleport(player, lobbyPosition, false)
+	end
+	broadcast()
+	waitPhase(Config.ResultSeconds)
+end
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="13">
+        <Properties>
+          <string name="Name">Profiles</string>
+          <string name="Source"><![CDATA[-- Server-owned profiles. Paid grants and their receipt metadata commit atomically.
+-- Studio uses session-only progress and never charges developer products.
+local Profiles = {}
+
+local function whole(value, cap)
+	if type(value) ~= "number" or value ~= value or value < 0 or value == math.huge then return 0 end
+	return math.min(math.floor(value), cap)
+end
+
+local function clone(value)
+	if type(value) ~= "table" then return value end
+	local result = {}
+	for key, child in pairs(value) do result[key] = clone(child) end
+	return result
+end
+
+function Profiles.new(deps)
+	local config = deps.Config
+	local shared = not deps.Ledger and game:GetService("ReplicatedStorage"):WaitForChild("ColorRush") or nil
+	local Ledger = deps.Ledger or require(shared.Ledger)
+	local Progression = deps.Progression or require(shared.Progression)
+	local tasks, now = deps.Tasks or task, deps.Clock or os.time
+	local warnMessage = deps.Warn or warn
+	local notify = deps.Notify or function() end
+	local refresh = deps.Refresh or function() end
+	local players = deps.Players
+	local store = deps.DataStoreService:GetDataStore(config.DataStoreName or "ColorRush_v1")
+	local maxCoins, maxCredits, maxReceipts = config.MaxCoins or 100000000, config.MaxReviveCredits or 1000, config.MaxReceipts or 10000
+	local session = deps.HttpService:GenerateGUID(false)
+	local savingEnabled = not deps.RunService:IsStudio()
+	local records, loading = {}, {}
+	local controller, closing, started = {}, false, false
+
+	local function send(player, message) pcall(notify, player, message) end
+	local function online(player) return players:GetPlayerByUserId(player.UserId) == player end
+	local function clean(raw)
+		raw = type(raw) == "table" and raw or {}
+		local owned = { ["1"] = true }
+		for index, trail in ipairs(config.Trails or {}) do
+			if trail.Access ~= "VIP" and type(raw.OwnedTrails) == "table" and raw.OwnedTrails[tostring(index)] == true then owned[tostring(index)] = true end
+		end
+		local selected = whole(raw.SelectedTrail, #(config.Trails or {}))
+		if selected < 1 then selected = 1 end
+		local selectedConfig = (config.Trails or {})[selected]
+		if not owned[tostring(selected)] and not (selectedConfig and selectedConfig.Access == "VIP") then selected = 1 end
+		return { Coins = whole(raw.Coins, maxCoins), Wins = whole(raw.Wins, 100000000),
+			SelectedTrail = selected, OwnedTrails = owned, ReviveCredits = whole(raw.ReviveCredits, maxCredits),
+			AutoRevive = raw.AutoRevive == true, Receipts = Ledger.cleanReceipts(raw.Receipts),
+			Progress = Progression.clean(raw.Progress, now(), config) }
+	end
+
+	local function snapshot(data)
+		local result = clone(data)
+		result.Progress = Progression.clean(data.Progress, now(), config)
+		return result
+	end
+
+	local function envelope(data, release, token)
+		local result = { Data = data, Session = session, LeaseUntil = now() + 240, Commit = token }
+		if release then result.Session, result.LeaseUntil = nil, nil end
+		return result
+	end
+
+	function controller.get(player) return records[player] end
+
+	function controller.load(player)
+		if records[player] then return records[player] end
+		if closing or loading[player] then return nil end
+		loading[player] = true
+		local data, writable = clean(nil), false
+		if savingEnabled then
+			for attempt = 1, 3 do
+				local token = deps.HttpService:GenerateGUID(false)
+				local ok, committed = pcall(function()
+					return store:UpdateAsync("Player_" .. player.UserId, function(old)
+						if type(old) == "table" and old.Session and old.Session ~= session and (tonumber(old.LeaseUntil) or 0) > now() then return nil end
+						local raw = type(old) == "table" and (old.Data or old) or nil
+						-- Corrupted receipt histories are never overwritten or forgotten.
+						if type(raw) == "table" and not Ledger.validReceipts(raw.Receipts) then return nil end
+						return envelope(clean(raw), false, token)
+					end)
+				end)
+				if ok and type(committed) == "table" and committed.Session == session and committed.Commit == token then
+					data, writable = clean(committed.Data), true
+					break
+				end
+				if attempt < 3 and online(player) and not closing then tasks.wait(attempt * 2) else break end
+			end
+		end
+		local record = { Data = data, Writable = writable, Ready = true, Saving = false,
+			Revision = 0, SavedRevision = 0, VIP = false, VIPKnown = false, LastSaveFailed = false }
+		records[player], loading[player] = record, nil
+		if not online(player) or closing then
+			record.Leaving = true
+			controller.save(player, true)
+			records[player] = nil
+			return nil
+		end
+		if savingEnabled and not writable then send(player, "No pudimos cargar el guardado. Esta sesión no conserva progreso ni permite compras.") end
+		pcall(refresh, player)
+		return record
+	end
+
+	function controller.save(player, release)
+		local record = records[player]
+		if not record or not record.Writable then return false end
+		while record.Saving do tasks.wait(0.1) end
+		if records[player] ~= record or not record.Writable then return false end
+		record.Saving = true
+		local base, revision, token = snapshot(record.Data), record.Revision, deps.HttpService:GenerateGUID(false)
+		local lostLock = false
+		local ok, committed = pcall(function()
+			return store:UpdateAsync("Player_" .. player.UserId, function(old)
+				lostLock = false
+				if type(old) ~= "table" or old.Session ~= session then lostLock = true; return nil end
+				local merged = Ledger.merge(base, old.Data, maxCoins, maxCredits)
+				return merged and envelope(merged, release, token) or nil
+			end)
+		end)
+		local recovered = ok and type(committed) == "table" and committed.Commit == token
+			and Ledger.reconcile(record.Data, committed.Data, maxCoins, maxCredits) or nil
+		if recovered then
+			if recovered.Coins > 0 or recovered.Credits > 0 then record.Revision += 1 end
+			record.PendingPaid, record.UncertainReceipt = nil, nil
+			record.LastSaveFailed, record.SavedRevision = false, revision
+			if release then record.Writable = false end
+		else
+			record.LastSaveFailed = true
+			if lostLock then record.Writable = false end
+			warnMessage("Color Rush: guardado no confirmado para " .. player.UserId)
+			if not record.Leaving then send(player, "No se pudo confirmar el guardado. Estamos reintentando; las compras están pausadas.") end
+		end
+		record.Saving = false
+		pcall(refresh, player)
+		return recovered ~= nil
+	end
+
+	function controller.grantReceipt(player, receipt, product)
+		local record = records[player]
+		if not record or not record.Writable or record.Leaving then return false end
+		while record.Saving do tasks.wait(0.1) end
+		if records[player] ~= record or not record.Writable or record.Leaving then return false end
+		if record.UncertainReceipt and record.UncertainReceipt ~= receipt.PurchaseId then return false end
+		record.Saving = true
+		local grant = { Coins = product.Coins or 0, Credits = product.Credits or 0 }
+		record.PendingPaid = grant
+		local base, token, lostLock, newlyGranted = snapshot(record.Data), deps.HttpService:GenerateGUID(false), false, false
+		local ok, committed = pcall(function()
+			return store:UpdateAsync("Player_" .. player.UserId, function(old)
+				lostLock, newlyGranted = false, false
+				if type(old) ~= "table" or old.Session ~= session then lostLock = true; return nil end
+				local receipts = Ledger.cleanReceipts(type(old.Data) == "table" and old.Data.Receipts or nil)
+				if not receipts[receipt.PurchaseId] then
+					local count = 0
+					for _ in pairs(receipts) do count += 1 end
+					if count >= maxReceipts then return nil end
+				end
+				local updated, isNew = Ledger.grant(base, old.Data, receipt.PurchaseId, grant, maxCoins, maxCredits)
+				newlyGranted = isNew == true
+				return updated and envelope(updated, false, token) or nil
+			end)
+		end)
+		local recovered = ok and type(committed) == "table" and committed.Commit == token
+			and Ledger.reconcile(record.Data, committed.Data, maxCoins, maxCredits) or nil
+		if recovered then
+			record.Revision += 1
+			record.LastSaveFailed, record.PendingPaid, record.UncertainReceipt = false, nil, nil
+		else
+			record.LastSaveFailed, record.UncertainReceipt = true, receipt.PurchaseId
+			if lostLock then record.Writable = false end
+		end
+		record.Saving = false
+		if not recovered then
+			tasks.delay(2, function()
+				if records[player] == record and record.Writable and not record.Leaving then controller.save(player, false) end
+			end)
+			return false
+		end
+		pcall(refresh, player)
+		local message = ""
+		if newlyGranted then
+			message = grant.Credits > 0 and ("Compra guardada: +" .. grant.Credits .. " reentrada(s). Si terminó la partida, siguen disponibles.")
+				or ("Compra entregada: +" .. grant.Coins .. " monedas.")
+		end
+		return true, message
+	end
+
+	function controller.public(player)
+		local record = records[player]
+		if not record then return nil end
+		local view = Progression.view(record.Data.Progress, now(), config)
+		return { Coins = record.Data.Coins, Wins = record.Data.Wins, Level = view.Level, XP = view.XP,
+			SelectedTrail = record.Data.SelectedTrail, OwnedTrails = clone(record.Data.OwnedTrails),
+			ReviveCredits = record.Data.ReviveCredits, VIP = record.VIP == true, AutoRevive = record.Data.AutoRevive == true }
+	end
+
+	function controller.progression(player)
+		local record = records[player]
+		return record and Progression.view(record.Data.Progress, now(), config) or nil
+	end
+
+	function controller.mutate(player, callback)
+		local record = records[player]
+		if not record or not record.Ready or record.Saving or record.Leaving then return false, "Espera a que termine el guardado." end
+		local candidate = snapshot(record.Data)
+		local ok, accepted, message = pcall(callback, candidate)
+		if not ok then warnMessage("Color Rush: mutación de perfil rechazada."); return false, "No se pudo aplicar el cambio." end
+		if accepted == false then return false, message end
+		record.Data, record.Revision = candidate, record.Revision + 1
+		return true, message
+	end
+
+	function controller.reward(player, coins, wins, rounds, actions)
+		local record = records[player]
+		if not record or record.Leaving then return false end
+		local reserved = record.PendingPaid and record.PendingPaid.Coins or 0
+		local granted = math.min(whole(coins, maxCoins), math.max(0, maxCoins - reserved - record.Data.Coins))
+		record.Data.Coins += granted
+		record.Data.Wins = math.min(record.Data.Wins + whole(wins, 100000000), 100000000)
+		Progression.record(record.Data.Progress, { Wins = wins, Rounds = rounds, Actions = actions }, now(), config)
+		record.Revision += 1
+		return true, granted
+	end
+
+	function controller.claim(player, key)
+		return controller.mutate(player, function(data)
+			for _, mission in ipairs(config.DailyMissions or {}) do
+				if mission.Key == key and data.Coins + (records[player].PendingPaid and records[player].PendingPaid.Coins or 0) + mission.Reward > maxCoins then return false, "Gasta algunas monedas antes de reclamar." end
+			end
+			local reward, message = Progression.claim(data.Progress, key, now(), config)
+			if reward <= 0 then return false, message end
+			data.Coins += reward
+			return true, message
+		end)
+	end
+
+	function controller.trail(player, index)
+		local record = records[player]
+		if type(index) ~= "number" or index % 1 ~= 0 or not (config.Trails or {})[index] then return false, "Estela inválida." end
+		local trail = config.Trails[index]
+		return controller.mutate(player, function(data)
+			if trail.Access == "VIP" then
+				if not record or not record.VIP then return false, "Esta estela requiere el pase VIP Prisma." end
+			elseif not data.OwnedTrails[tostring(index)] then
+				local cost = whole(trail.Cost, maxCoins)
+				if data.Coins < cost then return false, "Te faltan monedas para esta estela." end
+				data.Coins -= cost
+				data.OwnedTrails[tostring(index)] = true
+			end
+			data.SelectedTrail = index
+			return true, "Estela equipada."
+		end)
+	end
+
+	function controller.autoRevive(player, enabled)
+		if type(enabled) ~= "boolean" then return false, "Configuración inválida." end
+		return controller.mutate(player, function(data) data.AutoRevive = enabled; return true end)
+	end
+
+	-- Match eligibility MUST be checked by Main immediately before this nonyielding call.
+	-- No purchase callback itself revives a player or reverses an announced winner.
+	function controller.consumeRevive(player)
+		local record = records[player]
+		if not record or (savingEnabled and not record.Writable) or record.PendingPaid or record.UncertainReceipt or record.LastSaveFailed then
+			return false, "Espera a que se confirme tu guardado antes de usar una reentrada."
+		end
+		local ok, message = controller.mutate(player, function(data)
+			if data.ReviveCredits < 1 then return false, "No tienes reentradas disponibles." end
+			data.ReviveCredits -= 1
+			return true, "Reentrada utilizada."
+		end)
+		if ok and record.Writable then tasks.defer(controller.save, player, false) end
+		return ok, message
+	end
+
+	function controller.remove(player)
+		local record = records[player]
+		if not record then return end
+		record.Leaving = true
+		controller.save(player, true)
+		if records[player] == record then records[player] = nil end
+	end
+
+	function controller.start()
+		if started then return end
+		started = true
+		tasks.spawn(function()
+			while not closing do
+				tasks.wait(config.SaveInterval or 75)
+				if closing then break end
+				for player, record in pairs(records) do
+					if record.Writable and not record.Leaving then tasks.spawn(controller.save, player, false) end
+				end
+			end
+		end)
+	end
+
+	function controller.close()
+		closing = true
+		local pending = 0
+		for player, record in pairs(records) do
+			record.Leaving = true
+			pending += 1
+			tasks.spawn(function() controller.save(player, true); pending -= 1 end)
+		end
+		local deadline = os.clock() + 25
+		while pending > 0 and os.clock() < deadline do tasks.wait(0.1) end
+	end
+
+	return controller
+end
+
+return Profiles
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="SoundService" referent="14">
+    <Properties>
+      <string name="Name">SoundService</string>
+      <bool name="RespectFilteringEnabled">true</bool>
+    </Properties>
+  </Item>
+  <Item class="StarterPlayer" referent="15">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="16">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="Folder" referent="17">
+        <Properties>
+          <string name="Name">ColorRushClient</string>
+        </Properties>
+        <Item class="LocalScript" referent="18">
+          <Properties>
+            <string name="Name">Main</string>
+            <string name="Source"><![CDATA[-- Client presentation. Gate choices, eliminations, currency and receipts belong to the server.
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local player = Players.LocalPlayer
+local shared = ReplicatedStorage:WaitForChild("ColorRush")
+local Config = require(shared:WaitForChild("Config"))
+local Characters = require(shared:WaitForChild("Characters"))
+local Portrait = require(shared:WaitForChild("Portrait"))
+local Rules = require(shared:WaitForChild("Rules"))
+local remotes = shared:WaitForChild("Remotes")
+local stateEvent = remotes:WaitForChild("State")
+local actionEvent = remotes:WaitForChild("Action")
+
+local latest = {}
+local currentPage = "Estelas"
+local pages, tabs, trailButtons, offerRows = {}, {}, {}, {}
+local quoteGeneration = 0
+local catalogSignature, missionSignature, worldSignature = "", "", ""
+local previewSignature = ""
+local lastPurchaseRequest, lastReviveRequest = 0, 0
+local toastSerial = 0
+local albumPage = 1
+local openPage
+local showToast
+local cancelPractice = function() end
+local practiceGeneration = 0
+local practiceRandom = Random.new()
+local ink = Color3.fromRGB(243, 247, 255)
+local muted = Color3.fromRGB(164, 180, 211)
+local violet = Color3.fromRGB(133, 90, 255)
+local cyan = Color3.fromRGB(56, 225, 228)
+local dark = Color3.fromRGB(14, 19, 34)
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ColorRushUI"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local function corners(object, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius or 14)
+	c.Parent = object
+end
+
+local function stroke(object, color, transparency)
+	local s = Instance.new("UIStroke")
+	s.Color, s.Transparency, s.Thickness = color or violet, transparency or 0.65, 1
+	s.Parent = object
+end
+
+local function label(parent, content, size, position, dimensions)
+	local t = Instance.new("TextLabel")
+	t.BackgroundTransparency = 1
+	t.Text, t.TextSize, t.TextColor3 = content, size or 16, ink
+	t.Font = Enum.Font.GothamBold
+	t.TextWrapped, t.TextXAlignment = true, Enum.TextXAlignment.Left
+	t.Position, t.Size = position or UDim2.new(), dimensions or UDim2.new(1, 0, 0, 30)
+	t.ZIndex = parent:IsA("GuiObject") and parent.ZIndex + 1 or 2
+	t.Parent = parent
+	return t
+end
+
+local function fitText(object, minSize, maxSize)
+	object.TextScaled = true
+	local c = Instance.new("UITextSizeConstraint")
+	c.MinTextSize, c.MaxTextSize = minSize or 10, maxSize or 18
+	c.Parent = object
+end
+
+local function button(parent, content, position, dimensions, callback)
+	local b = Instance.new("TextButton")
+	b.Text, b.TextSize, b.TextColor3 = content, 14, ink
+	b.Font, b.TextWrapped = Enum.Font.GothamBold, true
+	b.BackgroundColor3 = Color3.fromRGB(45, 54, 81)
+	b.Position, b.Size = position, dimensions
+	b.ZIndex = parent:IsA("GuiObject") and parent.ZIndex + 1 or 2
+	b.Parent = parent
+	corners(b, 10)
+	if callback then b.Activated:Connect(callback) end
+	return b
+end
+
+local function card(parent, height)
+	local f = Instance.new("Frame")
+	f.BackgroundColor3 = Color3.fromRGB(24, 31, 51)
+	f.Size = UDim2.new(1, 0, 0, height or 90)
+	f.ZIndex = parent.ZIndex + 1
+	f.Parent = parent
+	corners(f)
+	stroke(f, Color3.fromRGB(115, 140, 190), 0.85)
+	return f
+end
+
+local function viewport(parent, position, dimensions)
+	local v = Instance.new("ViewportFrame")
+	v.BackgroundTransparency = 1
+	v.Position, v.Size = position, dimensions
+	v.ZIndex = parent.ZIndex + 1
+	v.Parent = parent
+	return v
+end
+
+local function mount(v, characterId, color, hidden)
+	-- Portrait owns the camera, model and lighting; never use user-provided image URLs.
+	for _, child in ipairs(v:GetChildren()) do child:Destroy() end
+	local ok, err = pcall(Portrait.mount, v, characterId, color, hidden)
+	if not ok then warn("Color Rush: portrait unavailable", err) end
+end
+
+local hud = Instance.new("Frame")
+hud.AnchorPoint = Vector2.new(0.5, 0)
+hud.Position, hud.Size = UDim2.new(0.5, 0, 0, 8), UDim2.new(0.96, 0, 0, 118)
+hud.BackgroundColor3, hud.BackgroundTransparency = dark, 0.07
+hud.Parent = gui
+corners(hud, 16)
+stroke(hud)
+local hudLimit = Instance.new("UISizeConstraint")
+hudLimit.MaxSize = Vector2.new(800, 118)
+hudLimit.Parent = hud
+local title = label(hud, "COLOR RUSH", 22, UDim2.fromOffset(15, 8), UDim2.new(0.55, 0, 0, 27))
+fitText(title, 13, 22)
+local timer = label(hud, "--", 25, UDim2.new(1, -86, 0, 8), UDim2.fromOffset(70, 30))
+timer.TextXAlignment, timer.TextColor3 = Enum.TextXAlignment.Right, cyan
+local instructions = label(hud, "Preparando la carrera...", 14, UDim2.fromOffset(15, 39), UDim2.new(1, -30, 0, 34))
+fitText(instructions, 11, 16)
+local stats = label(hud, "0 monedas  ·  0 victorias  ·  Nv. 1", 12, UDim2.fromOffset(15, 79), UDim2.new(1, -145, 0, 22))
+fitText(stats, 9, 12)
+local menuButton = button(hud, "TIENDA", UDim2.new(1, -126, 0, 78), UDim2.fromOffset(110, 28), function()
+	openPage((latest.Phase == "LOBBY" or latest.Eliminated) and "Entrenar" or "Estelas")
+end)
+menuButton.BackgroundColor3 = violet
+fitText(menuButton, 10, 13)
+
+local status = label(gui, "", 12, UDim2.new(0.5, 0, 0, 131), UDim2.new(0.92, 0, 0, 26))
+status.AnchorPoint, status.TextXAlignment, status.TextColor3 = Vector2.new(0.5, 0), Enum.TextXAlignment.Center, muted
+status.BackgroundColor3, status.BackgroundTransparency = dark, 0.2
+corners(status, 9)
+local statusLimit = Instance.new("UISizeConstraint")
+statusLimit.MaxSize = Vector2.new(770, 26)
+statusLimit.Parent = status
+
+local preview = Instance.new("Frame")
+preview.AnchorPoint = Vector2.new(0.5, 0.5)
+preview.Position, preview.Size = UDim2.fromScale(0.5, 0.58), UDim2.fromOffset(390, 355)
+preview.BackgroundColor3, preview.BackgroundTransparency = dark, 0.03
+preview.Visible, preview.ZIndex = false, 5
+preview.Parent = gui
+corners(preview, 22)
+stroke(preview, cyan, 0.25)
+local previewScale = Instance.new("UIScale")
+previewScale.Parent = preview
+local previewHeading = label(preview, "MEMORIZA EL COLOR", 20, UDim2.fromOffset(15, 11), UDim2.new(1, -30, 0, 27))
+previewHeading.TextXAlignment, previewHeading.TextColor3 = Enum.TextXAlignment.Center, cyan
+local previewViewport = viewport(preview, UDim2.fromOffset(20, 44), UDim2.new(1, -40, 1, -94))
+local previewCaption = label(preview, "", 14, UDim2.new(0, 15, 1, -43), UDim2.new(1, -30, 0, 30))
+previewCaption.TextXAlignment = Enum.TextXAlignment.Center
+
+local reviveBox = Instance.new("Frame")
+reviveBox.AnchorPoint = Vector2.new(0.5, 1)
+reviveBox.Position, reviveBox.Size = UDim2.new(0.5, 0, 1, -12), UDim2.new(0.72, 0, 0, 126)
+reviveBox.BackgroundColor3, reviveBox.BackgroundTransparency = dark, 0.06
+reviveBox.Visible, reviveBox.ZIndex = false, 6
+reviveBox.Parent = gui
+corners(reviveBox)
+stroke(reviveBox)
+local reviveLimit = Instance.new("UISizeConstraint")
+reviveLimit.MaxSize = Vector2.new(500, 126)
+reviveLimit.Parent = reviveBox
+local reviveMessage = label(reviveBox, "", 13, UDim2.fromOffset(12, 8), UDim2.new(1, -24, 0, 52))
+reviveMessage.TextXAlignment = Enum.TextXAlignment.Center
+local reviveButton = button(reviveBox, "", UDim2.fromOffset(12, 66), UDim2.new(0.6, -18, 0, 43), function()
+	if os.clock() - lastReviveRequest < 1 then return end
+	lastReviveRequest = os.clock()
+	if (latest.Profile and latest.Profile.ReviveCredits or 0) > 0 then
+		actionEvent:FireServer("UseRevive", true)
+	else
+		openPage("Robux")
+	end
+end)
+reviveButton.BackgroundColor3 = violet
+fitText(reviveButton, 10, 14)
+local waitButton = button(reviveBox, "ESPERAR GRATIS", UDim2.new(0.6, 0, 0, 66), UDim2.new(0.4, -12, 0, 43), function() reviveBox.Visible = false end)
+fitText(waitButton, 9, 13)
+
+local overlay = Instance.new("Frame")
+overlay.Size = UDim2.fromScale(1, 1)
+overlay.BackgroundColor3, overlay.BackgroundTransparency = Color3.new(0, 0, 0), 0.28
+overlay.Visible, overlay.ZIndex = false, 20
+overlay.Parent = gui
+local panel = Instance.new("Frame")
+panel.AnchorPoint, panel.Position, panel.Size = Vector2.new(0.5, 0.5), UDim2.fromScale(0.5, 0.5), UDim2.fromScale(0.94, 0.88)
+panel.BackgroundColor3, panel.ZIndex = dark, 21
+panel.Parent = overlay
+corners(panel, 20)
+stroke(panel)
+local panelLimit = Instance.new("UISizeConstraint")
+panelLimit.MaxSize = Vector2.new(700, 640)
+panelLimit.Parent = panel
+local heading = label(panel, "PERSONALIZA TU CARRERA", 21, UDim2.fromOffset(16, 12), UDim2.new(1, -80, 0, 32))
+fitText(heading, 12, 21)
+button(panel, "X", UDim2.new(1, -52, 0, 10), UDim2.fromOffset(36, 34), function() cancelPractice(); overlay.Visible = false end)
+local scroll = Instance.new("ScrollingFrame")
+scroll.Position, scroll.Size = UDim2.fromOffset(14, 100), UDim2.new(1, -28, 1, -115)
+scroll.BackgroundTransparency, scroll.BorderSizePixel, scroll.ScrollBarThickness = 1, 0, 5
+scroll.AutomaticCanvasSize, scroll.CanvasSize = Enum.AutomaticSize.Y, UDim2.new()
+scroll.ZIndex, scroll.Parent = 22, panel
+
+local function makePage(name)
+	local p = Instance.new("Frame")
+	p.Name, p.BackgroundTransparency, p.Size = name, 1, UDim2.new(1, -8, 0, 0)
+	p.AutomaticSize, p.ZIndex, p.Visible = Enum.AutomaticSize.Y, 23, false
+	p.Parent = scroll
+	local l = Instance.new("UIListLayout")
+	l.Padding, l.SortOrder, l.Parent = UDim.new(0, 10), Enum.SortOrder.LayoutOrder, p
+	pages[name] = p
+	return p
+end
+
+local function paragraph(parent, content, size)
+	local t = label(parent, content, size or 14, UDim2.new(), UDim2.new(1, 0, 0, 0))
+	t.AutomaticSize, t.TextYAlignment, t.Font = Enum.AutomaticSize.Y, Enum.TextYAlignment.Top, Enum.Font.Gotham
+	t.TextColor3 = muted
+	return t
+end
+
+local function clearPage(p)
+	for _, child in ipairs(p:GetChildren()) do if not child:IsA("UIListLayout") then child:Destroy() end end
+end
+
+local trailPage = makePage("Estelas")
+paragraph(trailPage, "Tu estilo, tus colores. Las estelas son cosméticas: no cambian la velocidad ni las respuestas. Gana monedas jugando o compra un paquete opcional.")
+for i, trail in ipairs(Config.Trails or {}) do
+	local key = tostring(trail.Key or trail.Id or i)
+	local b = button(trailPage, trail.Name or key, UDim2.new(), UDim2.new(1, 0, 0, 64), function()
+		if (trail.Access == "VIP" or trail.VIP) and not (latest.Profile and latest.Profile.VIP) then
+			openPage("Robux")
+		else actionEvent:FireServer("Trail", tonumber(key) or key) end
+	end)
+	b.LayoutOrder = i
+	b.BackgroundColor3 = Color3.fromRGB(33, 43, 66)
+	local accent = Instance.new("Frame")
+	accent.Position, accent.Size = UDim2.fromOffset(8, 8), UDim2.new(0, 5, 1, -16)
+	local rgb = trail.ColorRGB
+	accent.BackgroundColor3 = typeof(trail.Color) == "Color3" and trail.Color or (rgb and Color3.fromRGB(rgb[1] or rgb.r, rgb[2] or rgb.g, rgb[3] or rgb.b)) or violet
+	accent.BorderSizePixel, accent.ZIndex, accent.Parent = 0, b.ZIndex + 1, b
+	corners(accent, 3)
+	trailButtons[key] = { Button = b, Trail = trail }
+end
+local robuxPage = makePage("Robux")
+local missionsPage = makePage("Misiones")
+local album = makePage("Álbum")
+local practicePage = makePage("Entrenar")
+local help = makePage("Ayuda")
+paragraph(help,
+	"CINCO CAMINOS. UN COLOR CORRECTO.\n\n"
+	.. "1. Mira el personaje original durante dos segundos. Recuerda el color de la parte destacada.\n"
+	.. "2. Corre a una de las cinco imágenes. Colócate detrás de la puerta que conserva el color original.\n"
+	.. "3. Puedes cambiar de dirección hasta cruzar una puerta. Cruzarla confirma tu elección: si es correcta sigues; si es incorrecta quedas eliminado.\n"
+	.. "4. Si aciertas, sigues. Si fallas, esperas gratis en el vestíbulo o usas un crédito de reentrada válido.\n\n"
+	.. "FINAL\nCon dos corredores, gana el primero que llega al camino correcto. Elegir un camino incorrecto te elimina. "
+	.. "Cada finalista puede usar como máximo una reentrada en la final si todavía no ha usado su reentrada de esa partida. "
+	.. "Activa la reentrada automática antes de competir si quieres usar un crédito que ya tienes al fallar. Nunca se inicia una compra automática. Una victoria anunciada no se revoca.\n\n"
+	.. "CRÉDITOS DE REENTRADA\nUna reentrada por jugador y partida, incluida la final. La reentrada vuelve a una etapa válida; no compra una respuesta ni una victoria. "
+	.. "Si compras un crédito y la partida ya terminó, lo conservas para otra. Si todos fallan, la etapa se repite sin consumir créditos.\n\n"
+	.. "CONTROLES\nComputadora: WASD o flechas para correr, espacio para saltar. Celular: joystick y botón de salto. "
+	.. "Corre físicamente a las puertas; tocar imágenes en la pantalla no elige un camino.\n\n"
+	.. "ENTRENAMIENTO GRATUITO\nMientras esperas puedes practicar en la pestaña Entrenar. Mira dos segundos y toca una de cinco imágenes. "
+	.. "Es una práctica local: no entrega monedas, XP ni créditos, y no cuenta como una carrera. Cuando empiece tu partida se cierra automáticamente.\n\n"
+	.. "MONEDAS Y VIP\nMonedas, estelas, XP y misiones se obtienen jugando. El VIP es un pase permanente con cosméticos exclusivos. "
+	.. "Roblox Premium es otra suscripción y no sustituye el VIP. Las monedas y los créditos no se canjean por Robux ni dinero. "
+	.. "Los precios y la confirmación de pago aparecen en la ventana oficial de Roblox.\n\n"
+	.. "GUARDADO\nEl progreso se guarda en la experiencia publicada. Studio utiliza datos temporales. Si el estado de guardado indica un problema, espera a que se recupere.", 15)
+
+local autoRevive = button(help, "", UDim2.new(), UDim2.new(1, 0, 0, 68), function()
+	actionEvent:FireServer("AutoRevive", not (latest.Profile and latest.Profile.AutoRevive))
+end)
+autoRevive.LayoutOrder = 10
+autoRevive.BackgroundColor3 = Color3.fromRGB(41, 48, 75)
+
+local function getCatalog()
+	local c = latest.Catalog or latest.Commerce or {}
+	return type(c.Catalog) == "table" and c.Catalog or c
+end
+
+local function catalogKey()
+	local values = {}
+	for _, offer in ipairs(getCatalog()) do
+		values[#values + 1] = table.concat({ tostring(offer.Key), tostring(offer.Kind), tostring(offer.Id), tostring(offer.Available), tostring(offer.Name), tostring(offer.Description) }, "|")
+	end
+	return table.concat(values, ";")
+end
+
+local function updateOffer(row)
+	local e, b, quote = row.Entry, row.Button, row.Quote
+	local enabled = e.Available == true and type(e.Id) == "number" and e.Id > 0 and not e.Owned
+	if e.Owned then b.Text = "ADQUIRIDO"
+	elseif not enabled then b.Text = "NO DISPONIBLE"
+	elseif quote and quote.ForSale == false then b.Text, enabled = "NO DISPONIBLE", false
+	elseif row.Loading then b.Text, enabled = "CONSULTANDO PRECIO...", false
+	elseif quote and quote.Price then b.Text = "COMPRAR  ·  R$ " .. tostring(quote.Price)
+	else b.Text = "VER PRECIO EN ROBLOX" end
+	b.Active, b.Selectable, b.AutoButtonColor = enabled, enabled, enabled
+	b.BackgroundColor3 = enabled and violet or Color3.fromRGB(43, 51, 72)
+end
+
+local function productInfo(id, kind)
+	local infoType = kind == "Pass" and Enum.InfoType.GamePass or Enum.InfoType.Product
+	local present, method = pcall(function() return MarketplaceService.GetProductInfoAsync end)
+	if present and type(method) == "function" then return method(MarketplaceService, id, infoType) end
+	return MarketplaceService:GetProductInfo(id, infoType)
+end
+
+local function rebuildCommerce()
+	quoteGeneration += 1
+	local generation = quoteGeneration
+	catalogSignature = catalogKey()
+	clearPage(robuxPage)
+	offerRows = {}
+	paragraph(robuxPage, "Compras opcionales con resultado conocido. Puedes esperar la siguiente partida sin pagar. Las estelas y el VIP no aumentan tu velocidad. El precio final se confirma en el diálogo oficial de Roblox.")
+	for i, offer in ipairs(getCatalog()) do
+		local c = card(robuxPage, 155)
+		c.LayoutOrder = i
+		label(c, offer.Name or "Oferta", 19, UDim2.fromOffset(13, 9), UDim2.new(1, -26, 0, 25))
+		local description = label(c, offer.Description or "", 13, UDim2.fromOffset(13, 37), UDim2.new(1, -26, 0, 60))
+		description.Font, description.TextColor3 = Enum.Font.Gotham, muted
+		local row = { Entry = offer }
+		row.Button = button(c, "", UDim2.fromOffset(12, 104), UDim2.new(1, -24, 0, 39), function()
+			local e = row.Entry
+			if not e.Available or e.Owned or row.Loading or (row.Quote and row.Quote.ForSale == false) then return end
+			if os.clock() - lastPurchaseRequest < 1 then return end
+			lastPurchaseRequest = os.clock()
+			actionEvent:FireServer("ShopBuy", { Kind = e.Kind, Key = e.Key })
+		end)
+		offerRows[i] = row
+		if offer.Available and type(offer.Id) == "number" and offer.Id > 0 and not offer.Owned then
+			row.Loading = true
+			task.spawn(function()
+				local ok, info = pcall(productInfo, offer.Id, offer.Kind)
+				if generation ~= quoteGeneration or not row.Button.Parent then return end
+				row.Loading = false
+				if ok and type(info) == "table" then
+					local price = info.PriceInRobux
+					if type(price) ~= "number" or price < 0 or price ~= price or price == math.huge or price % 1 ~= 0 then price = nil end
+					row.Quote = { Price = price, ForSale = info.IsForSale }
+				end
+				updateOffer(row)
+			end)
+		end
+		updateOffer(row)
+	end
+	local notice = paragraph(robuxPage, "Los paquetes se pueden comprar varias veces. El VIP se compra una vez. Los créditos permanecen guardados hasta usarlos; solo se consume un crédito cuando la reentrada es válida. Las monedas no son Robux.", 13)
+	notice.LayoutOrder = 100
+end
+
+local function missionsKey()
+	local p = latest.Progression or {}
+	local values = { tostring(p.Level), tostring(p.LevelProgress) }
+	for _, m in ipairs(p.Missions or {}) do values[#values + 1] = table.concat({ tostring(m.Key), tostring(m.Count), tostring(m.Claimed), tostring(m.Complete) }, "|") end
+	return table.concat(values, ";")
+end
+
+local function rebuildMissions()
+	missionSignature = missionsKey()
+	clearPage(missionsPage)
+	local p = latest.Progression or {}
+	paragraph(missionsPage, "NIVEL " .. tostring(p.Level or latest.Profile and latest.Profile.Level or 1) .. "  ·  " .. tostring(p.LevelProgress or 0) .. " / " .. tostring(p.NextLevelXP or 100) .. " XP", 20)
+	local intro = paragraph(missionsPage, "Las misiones diarias son gratuitas. Juega, acierta y reclama sus monedas cuando completes el objetivo.")
+	intro.LayoutOrder = 1
+	if #(p.Missions or {}) == 0 then paragraph(missionsPage, "Esperando tus misiones...").LayoutOrder = 2 end
+	for i, m in ipairs(p.Missions or {}) do
+		local canClaim = m.Complete == true and not m.Claimed
+		local b = button(missionsPage, (m.Name or "Misión") .. "\n" .. tostring(m.Count or 0) .. " / " .. tostring(m.Target or 0) .. "  ·  " .. tostring(m.Reward or 0) .. " monedas\n" .. (m.Claimed and "RECLAMADA" or canClaim and "RECLAMAR" or "EN PROGRESO"), UDim2.new(), UDim2.new(1, 0, 0, 99), function()
+			if canClaim then actionEvent:FireServer("ClaimMission", m.Key) end
+		end)
+		b.LayoutOrder, b.Active, b.Selectable, b.AutoButtonColor = i + 1, canClaim, canClaim, canClaim
+		b.BackgroundColor3 = canClaim and Color3.fromRGB(20, 111, 100) or Color3.fromRGB(36, 45, 68)
+	end
+end
+
+local function rebuildAlbum()
+	clearPage(album)
+	paragraph(album, "250 personajes originales. Este álbum es gratuito: no vende personajes ni ofrece recompensas aleatorias.")
+	local nav = card(album, 44)
+	nav.LayoutOrder = 1
+	label(nav, "PÁGINA " .. tostring(albumPage) .. " / 25", 13, UDim2.new(0.25, 0, 0, 0), UDim2.new(0.5, 0, 1, 0)).TextXAlignment = Enum.TextXAlignment.Center
+	button(nav, "<", UDim2.fromOffset(6, 6), UDim2.new(0.2, 0, 1, -12), function() albumPage = albumPage == 1 and 25 or albumPage - 1; rebuildAlbum() end)
+	button(nav, ">", UDim2.new(0.8, -6, 0, 6), UDim2.new(0.2, 0, 1, -12), function() albumPage = albumPage == 25 and 1 or albumPage + 1; rebuildAlbum() end)
+	for i = 1, 5 do
+		local row = Instance.new("Frame")
+		row.BackgroundTransparency, row.Size, row.LayoutOrder, row.ZIndex, row.Parent = 1, UDim2.new(1, 0, 0, 180), i + 1, 24, album
+		for j = 1, 2 do
+			local id = (albumPage - 1) * 10 + (i - 1) * 2 + j
+			local character = Characters.get(id)
+			local c = card(row, 180)
+			c.Size, c.Position = UDim2.new(0.5, -5, 1, 0), UDim2.new((j - 1) * 0.5, (j - 1) * 10, 0, 0)
+			local v = viewport(c, UDim2.fromOffset(6, 4), UDim2.new(1, -12, 1, -40))
+			mount(v, id)
+			local name = label(c, string.format("%03d  %s", id, character and character.Name or "Personaje"), 12, UDim2.new(0, 7, 1, -35), UDim2.new(1, -14, 0, 30))
+			name.TextXAlignment = Enum.TextXAlignment.Center
+			fitText(name, 9, 12)
+		end
+	end
+end
+
+local function rebuildPractice()
+	cancelPractice()
+	clearPage(practicePage)
+	paragraph(practicePage, "ENTRENAMIENTO GRATUITO. Practica mientras esperas. No entrega monedas, XP ni créditos; no cambia tu posición ni tus partidas.")
+	if latest.Alive == true and (latest.Phase == "RUN" or latest.Phase == "PREVIEW") then
+		paragraph(practicePage, "Estás participando en una carrera. Puedes entrenar cuando termine o después de quedar eliminado.")
+		return
+	end
+	local reference = card(practicePage, 220)
+	reference.LayoutOrder = 1
+	local hint = label(reference, "Pulsa Empezar para memorizar una imagen.", 14, UDim2.fromOffset(10, 8), UDim2.new(1, -20, 0, 28))
+	hint.TextXAlignment = Enum.TextXAlignment.Center
+	local original = viewport(reference, UDim2.fromScale(0.15, 0.16), UDim2.fromScale(0.7, 0.75))
+	local alternatives = Instance.new("Frame")
+	alternatives.Size, alternatives.BackgroundTransparency, alternatives.LayoutOrder = UDim2.new(1, 0, 0, 145), 1, 2
+	alternatives.ZIndex, alternatives.Parent = practicePage.ZIndex + 1, practicePage
+	local options = {}
+	local characterId, choices, correct, ready = nil, nil, nil, false
+	local startButton
+	local function setEnabled(enabled)
+		for _, entry in ipairs(options) do
+			entry.Button.Active, entry.Button.Selectable, entry.Button.AutoButtonColor = enabled, enabled, enabled
+		end
+	end
+	cancelPractice = function()
+		practiceGeneration += 1
+		ready = false
+		setEnabled(false)
+	end
+	for i = 1, 5 do
+		local b = button(alternatives, "", UDim2.new((i - 1) / 5, 3, 0, 0), UDim2.new(0.2, -6, 1, 0), function()
+			if not ready then return end
+			ready = false
+			setEnabled(false)
+			local success = Rules.classify(i, correct) == "correct"
+			hint.Text = success and "¡Correcto! Puedes practicar otra imagen." or "El correcto era el camino " .. tostring(correct) .. ". Intenta otra imagen."
+			hint.TextColor3 = success and cyan or Color3.fromRGB(255, 133, 155)
+			mount(original, characterId)
+			for index, entry in ipairs(options) do entry.Button.BackgroundColor3 = index == correct and Color3.fromRGB(22, 119, 100) or Color3.fromRGB(45, 54, 81) end
+			startButton.Text, startButton.Active, startButton.Selectable, startButton.AutoButtonColor = "OTRA IMAGEN", true, true, true
+			showToast(success and "¡Correcto! Práctica completada." or "Era el camino " .. tostring(correct) .. ". Puedes intentarlo otra vez gratis.")
+		end)
+		b.Name = "PracticeChoice" .. tostring(i)
+		local v = viewport(b, UDim2.fromScale(0.04, 0.03), UDim2.fromScale(0.92, 0.77))
+		local number = label(b, tostring(i), 12, UDim2.fromScale(0.04, 0.82), UDim2.fromScale(0.92, 0.15))
+		number.TextXAlignment = Enum.TextXAlignment.Center
+		options[i] = { Button = b, Viewport = v }
+	end
+	setEnabled(false)
+	startButton = button(practicePage, "EMPEZAR", UDim2.new(), UDim2.new(1, 0, 0, 43), function()
+		if not startButton.Active then return end
+		practiceGeneration += 1
+		local generation = practiceGeneration
+		ready = false
+		setEnabled(false)
+		characterId = practiceRandom:NextInteger(1, #Characters.All)
+		local character = Characters.get(characterId)
+		choices, correct = Rules.options(character.TargetRGB, Characters.Palette, 1, function(low, high) return practiceRandom:NextInteger(low, high) end)
+		mount(original, characterId)
+		hint.Text, hint.TextColor3 = "MEMORIZA " .. (character.TargetPart == "Helmet" and "EL CASCO" or "EL TRAJE") .. "  ·  2 segundos", cyan
+		startButton.Text, startButton.Active, startButton.Selectable, startButton.AutoButtonColor = "MEMORIZANDO...", false, false, false
+		for _, entry in ipairs(options) do
+			entry.Viewport.Visible = false
+			entry.Button.BackgroundColor3 = Color3.fromRGB(45, 54, 81)
+		end
+		task.delay(2, function()
+			if generation ~= practiceGeneration or currentPage ~= "Entrenar" or not overlay.Visible then return end
+			mount(original, characterId, nil, true)
+			for index, entry in ipairs(options) do mount(entry.Viewport, characterId, choices[index]); entry.Viewport.Visible = true end
+			hint.Text = "Toca la imagen que conserva el color original."
+			startButton.Text = "ELIGE UNA IMAGEN"
+			ready = true
+			setEnabled(true)
+		end)
+	end)
+	startButton.Name, startButton.LayoutOrder, startButton.BackgroundColor3 = "PracticeStart", 3, violet
+end
+
+openPage = function(name)
+	cancelPractice()
+	currentPage = name
+	for key, p in pairs(pages) do p.Visible = key == name; p.Parent = key == name and scroll or nil end
+	for key, b in pairs(tabs) do b.BackgroundColor3 = key == name and violet or Color3.fromRGB(38, 47, 70) end
+	heading.Text = name == "Entrenar" and "ENTRENA GRATIS" or name == "Ayuda" and "REGLAS Y REENTRADAS" or name == "Álbum" and "GALERÍA DE PERSONAJES" or "PERSONALIZA TU CARRERA"
+	if name == "Robux" then rebuildCommerce()
+	elseif name == "Misiones" then rebuildMissions()
+	elseif name == "Álbum" then rebuildAlbum()
+	elseif name == "Entrenar" then rebuildPractice() end
+	scroll.CanvasPosition, overlay.Visible = Vector2.zero, true
+end
+
+for i, name in ipairs({ "Estelas", "Robux", "Misiones", "Álbum", "Entrenar", "Ayuda" }) do
+	local b = button(panel, string.upper(name), UDim2.new((i - 1) / 6, 6, 0, 56), UDim2.new(1 / 6, -12, 0, 34), function() openPage(name) end)
+	fitText(b, 8, 12)
+	tabs[name] = b
+end
+
+local toast = label(gui, "", 16, UDim2.fromScale(0.5, 0.73), UDim2.new(0.86, 0, 0, 65))
+toast.AnchorPoint, toast.TextXAlignment, toast.BackgroundColor3 = Vector2.new(0.5, 0.5), Enum.TextXAlignment.Center, dark
+toast.BackgroundTransparency, toast.Visible, toast.ZIndex = 0.03, false, 40
+corners(toast)
+stroke(toast, cyan)
+local toastLimit = Instance.new("UISizeConstraint")
+toastLimit.MaxSize, toastLimit.Parent = Vector2.new(590, 65), toast
+showToast = function(message)
+	toastSerial += 1
+	local serial = toastSerial
+	toast.Text, toast.Visible = tostring(message), true
+	task.delay(4, function() if toastSerial == serial then toast.Visible = false end end)
+end
+
+local function worldPortrait(board, id, color, hidden, name, width, height)
+	local old = board:FindFirstChild("ColorRushPortrait")
+	if old then old:Destroy() end
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name, billboard.Adornee = "ColorRushPortrait", board
+	-- Scale here is measured in world studs. Fixed pixel widths overlap when
+	-- viewed from the starting line, especially on a small screen.
+	billboard.Size = UDim2.fromScale(width or 10.5, height or 12.4)
+	billboard.AlwaysOnTop, billboard.MaxDistance = false, 220
+	billboard.Parent = board
+	local background = Instance.new("Frame")
+	background.Size, background.BackgroundColor3, background.BackgroundTransparency = UDim2.fromScale(1, 1), dark, 0.04
+	background.Parent = billboard
+	corners(background, 12)
+	stroke(background, hidden and muted or cyan, 0.4)
+	local v = viewport(background, UDim2.fromScale(0.04, 0.03), UDim2.fromScale(0.92, 0.79))
+	mount(v, id, color, hidden)
+	local caption = label(background, name, 12, UDim2.fromScale(0.03, 0.83), UDim2.fromScale(0.94, 0.15))
+	caption.TextXAlignment = Enum.TextXAlignment.Center
+	fitText(caption, 11, 16)
+	return billboard
+end
+
+local function renderWorld(payload)
+	local world = workspace:FindFirstChild("ColorRushWorld")
+	if not world then return end
+	local parts = { tostring(payload.CharacterId), tostring(payload.Phase), tostring(payload.CorrectChoice) }
+	for _, rgb in ipairs(payload.Colors or {}) do parts[#parts + 1] = table.concat({ tostring(rgb[1] or rgb.r), tostring(rgb[2] or rgb.g), tostring(rgb[3] or rgb.b) }, ",") end
+	local signature = table.concat(parts, "|")
+	if signature == worldSignature then return end
+	worldSignature = signature
+	local show = payload.CharacterId and (payload.Phase == "RUN" or payload.Phase == "REVEAL")
+	for i = 1, 5 do
+		local board = world:FindFirstChild("Board" .. tostring(i), true)
+		if board then
+			local old = board:FindFirstChild("ColorRushPortrait")
+			if old then old:Destroy() end
+			if show and payload.Colors and payload.Colors[i] then
+				local caption = "CAMINO " .. tostring(i)
+				if payload.Phase == "REVEAL" and payload.CorrectChoice == i then caption = "CORRECTO  ·  " .. tostring(i) end
+				worldPortrait(board, payload.CharacterId, payload.Colors[i], false, caption)
+			end
+		end
+	end
+	local reference = world:FindFirstChild("ReferenceBoard", true)
+	if reference then
+		local old = reference:FindFirstChild("ColorRushPortrait")
+		if old then old:Destroy() end
+		if payload.CharacterId and (show or payload.Phase == "PREVIEW") then
+			worldPortrait(reference, payload.CharacterId, nil, payload.Phase == "RUN", payload.Phase == "RUN" and "RECUERDA EL COLOR" or "COLOR ORIGINAL", 23, 17)
+		end
+	end
+end
+
+local dismissedMatch = nil
+waitButton.Activated:Connect(function() dismissedMatch = latest.MatchId end)
+stateEvent.OnClientEvent:Connect(function(payload)
+	if type(payload) ~= "table" then return end
+	if payload.Phase == "PREVIEW" and payload.Alive == true then
+		cancelPractice()
+		overlay.Visible = false
+		toastSerial += 1
+		toast.Visible = false
+	end
+	latest = payload
+	local phase = payload.Phase
+	title.Text = phase == "LOBBY" and "COLOR RUSH" or payload.Final and "FINAL  ·  COLOR RUSH" or "COLOR RUSH  ·  ETAPA " .. tostring(payload.Round or 0)
+	timer.Text = tostring(payload.Seconds or 0) .. "s"
+	timer.TextColor3 = phase == "RUN" and (payload.Seconds or 0) <= 3 and Color3.fromRGB(255, 119, 143) or cyan
+	instructions.Text = payload.Message or "Corre a la imagen correcta."
+	menuButton.Text = (phase == "LOBBY" or payload.Eliminated) and "ENTRENAR" or "TIENDA"
+	local profile = payload.Profile or {}
+	stats.Text = tostring(profile.Coins or 0) .. " monedas  ·  " .. tostring(profile.Wins or 0) .. " victorias  ·  Nv. " .. tostring(profile.Level or payload.Progression and payload.Progression.Level or 1)
+	local selected = payload.SelectedChoice or payload.Selected
+	local selection = selected and ("  ·  Camino " .. tostring(selected)) or ""
+	status.Text = tostring(payload.RunnerCount or 0) .. " corredores" .. selection .. "  ·  " .. (payload.Persistence or "Cargando progreso")
+	preview.Visible = phase == "PREVIEW" and payload.CharacterId ~= nil
+	if preview.Visible then
+		local signature = tostring(payload.MatchId) .. "/" .. tostring(payload.Round) .. "/" .. tostring(payload.CharacterId)
+		if previewSignature ~= signature then
+			previewSignature = signature
+			mount(previewViewport, payload.CharacterId)
+			local character = Characters.get(payload.CharacterId)
+			previewCaption.Text = character and character.Name or "Recuerda el color destacado"
+			previewHeading.Text = character and character.TargetPart == "Helmet" and "MEMORIZA EL CASCO" or "MEMORIZA EL TRAJE"
+		end
+	end
+	for key, row in pairs(trailButtons) do
+		local t = row.Trail
+		local owned = profile.OwnedTrails and profile.OwnedTrails[key] or false
+		local vip = t.Access == "VIP" or t.VIP == true
+		if vip then owned = profile.VIP == true end
+		local suffix = tostring(profile.SelectedTrail) == key and "EQUIPADA" or owned and "EQUIPAR" or vip and "VER VIP" or tostring(t.Cost or 0) .. " monedas"
+		row.Button.Text = (t.Name or key) .. "  ·  " .. suffix
+	end
+	autoRevive.Text = "REENTRADA AUTOMÁTICA: " .. (profile.AutoRevive and "ACTIVADA" or "DESACTIVADA") .. "\nUsa solo créditos que ya tienes. Nunca compra automáticamente."
+	local credits = profile.ReviveCredits or 0
+	local eligible = payload.CanRevive == true and payload.QueuedRevive ~= true
+	-- The server supplies eligibility; the client never infers a safe reentry from a loss alone.
+	reviveBox.Visible = eligible and payload.MatchId ~= dismissedMatch and not overlay.Visible
+	reviveMessage.Text = "Quedaste eliminado. " .. tostring(credits) .. " crédito(s) disponibles.\nPuedes esperar gratis la siguiente partida."
+	if payload.QueuedRevive then status.Text = "REENTRADA CONFIRMADA: entrarás en la siguiente etapa." end
+	reviveButton.Text = credits > 0 and "USAR 1 CRÉDITO" or "VER CRÉDITO DE REENTRADA"
+	if overlay.Visible and currentPage == "Robux" then
+		if catalogSignature ~= catalogKey() then rebuildCommerce()
+		else for i, offer in ipairs(getCatalog()) do if offerRows[i] then offerRows[i].Entry = offer; updateOffer(offerRows[i]) end end end
+	elseif overlay.Visible and currentPage == "Misiones" and missionSignature ~= missionsKey() then rebuildMissions() end
+	renderWorld(payload)
+	if payload.Toast then showToast(payload.Toast) end
+	if payload.OpenShop then openPage("Estelas") end
+end)
+
+local viewportConnection
+local function adapt()
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+	local size = camera.ViewportSize
+	previewScale.Scale = math.min(1, math.max(0.5, math.min((size.X - 25) / 390, (size.Y - 175) / 355)))
+	if UserInputService.TouchEnabled then
+		reviveBox.AnchorPoint, reviveBox.Position = Vector2.new(0.5, 0), UDim2.new(0.5, 0, 0, 161)
+	else reviveBox.AnchorPoint, reviveBox.Position = Vector2.new(0.5, 1), UDim2.new(0.5, 0, 1, -12) end
+end
+local function watchCamera()
+	if viewportConnection then viewportConnection:Disconnect() end
+	if workspace.CurrentCamera then viewportConnection = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(adapt) end
+	adapt()
+end
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
+watchCamera()
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == Enum.KeyCode.H then if overlay.Visible then cancelPractice(); overlay.Visible = false else openPage("Ayuda") end
+	elseif input.KeyCode == Enum.KeyCode.Escape then cancelPractice(); overlay.Visible = false end
+end)
+actionEvent:FireServer("Sync")
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="Workspace" referent="19">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <float name="Gravity">150</float>
+      <bool name="NeedsPivotMigration">false</bool>
+    </Properties>
+  </Item>
+</roblox>

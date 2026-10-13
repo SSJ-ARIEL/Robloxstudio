@@ -16,8 +16,18 @@ jobs:
         run: bash tools/setup.sh
       - name: Compilar, comprobar reglas y simular servidor
         run: bash tools/validate.sh
+      - name: Verificar Color Rush
+        run: bash tools/validate.sh
+        working-directory: games/color-rush
+        env:
+          COLOR_RUSH_TOOLS_DIR: ${{ github.workspace }}/.tools
       - uses: actions/upload-artifact@v4
         with:
           name: ColorChaos-Studio
           path: build/ColorChaos.rbxlx
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ColorRush-Studio
+          path: games/color-rush/build/ColorRush.rbxlx
           if-no-files-found: error

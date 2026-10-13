@@ -1,0 +1,19 @@
+{
+  "name": "ColorRush",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": { "ColorRush": { "$path": "src/shared" } },
+    "ServerScriptService": { "ColorRushServer": { "$path": "src/server" } },
+    "StarterPlayer": { "StarterPlayerScripts": { "ColorRushClient": { "$path": "src/client" } } },
+    "Workspace": { "$properties": { "Gravity": 150 } },
+    "Lighting": {
+      "$properties": {
+        "ClockTime": 19,
+        "Brightness": 2,
+        "Ambient": [0.35, 0.4, 0.55],
+        "OutdoorAmbient": [0.5, 0.55, 0.7]
+      }
+    },
+    "SoundService": { "$properties": { "RespectFilteringEnabled": true } }
+  }
+}

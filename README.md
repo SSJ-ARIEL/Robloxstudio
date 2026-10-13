@@ -1,5 +1,7 @@
 # Color Chaos — entrega 1.0.0
 
+Este repositorio contiene dos experiencias independientes. El segundo juego, **Color Rush: Corre y Recuerda**, está en [games/color-rush](games/color-rush/README.md), con su propio proyecto Rojo, archivo de Studio, personajes, compras y guías. La configuración de la raíz sigue correspondiendo a Color Chaos.
+
 Experiencia cooperativa para 1–12 jugadores. Una máquina perdió la energía de la ciudad: el equipo recupera colores, reconstruye puentes y rescata chispas para reparar el reactor. Código, escenarios y gráficos creados para este proyecto; el nombre es provisional.
 
 ## Descargar y publicar
