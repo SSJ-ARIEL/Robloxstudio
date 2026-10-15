@@ -17,7 +17,7 @@ source_count=0
 while IFS= read -r -d '' source_file; do
   "$tools_dir/luau-compile" "$source_file" >/dev/null
   source_count=$((source_count + 1))
-done < <(find src tests -type f \( -name '*.luau' -o -name '*.lua' \) -print0)
+done < <(find src tests release -type f \( -name '*.luau' -o -name '*.lua' \) -print0)
 
 if [[ "$source_count" -eq 0 ]]; then
   printf '%s\n' 'No Luau sources found.' >&2
@@ -39,6 +39,9 @@ fi
 # Exercise the real server orchestration with mocks. This cannot validate
 # Roblox physics, networking, rendering or production DataStore availability.
 LUAU_BIN="$tools_dir/luau" python3 tools/simulate-server.py
+LUAU_BIN="$tools_dir/luau" python3 tools/simulate-client.py
+LUAU_BIN="$tools_dir/luau" python3 tools/simulate-bootstrap.py
+LUAU_BIN="$tools_dir/luau" python3 tools/test-installer.py
 
 mkdir -p build
 "$tools_dir/rojo" build default.project.json --output build/ColorChaos.rbxlx

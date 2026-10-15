@@ -5,11 +5,16 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local player = Players.LocalPlayer
-local shared = ReplicatedStorage:WaitForChild("ColorChaos")
-local Config = require(shared:WaitForChild("Config"))
-local remotes = shared:WaitForChild("Remotes")
-local stateEvent = remotes:WaitForChild("State")
-local actionEvent = remotes:WaitForChild("Action")
+local function requiredChild(parent, name)
+	local child = parent:WaitForChild(name, 15)
+	assert(child, "Color Chaos no inició: falta " .. parent.Name .. "." .. name)
+	return child
+end
+local shared = requiredChild(ReplicatedStorage, "ColorChaos")
+local Config = require(requiredChild(shared, "Config"))
+local remotes = requiredChild(shared, "Remotes")
+local stateEvent = requiredChild(remotes, "State")
+local actionEvent = requiredChild(remotes, "Action")
 local latest = {}
 local paletteButtons = {}
 local productRows = {}
@@ -20,12 +25,18 @@ local quoteGeneration = 0
 local lastPurchaseRequest = 0
 local lastMissionRequest = 0
 local toastSerial = 0
+local spectating = false
+local observedId = nil
+local spectatorIds = {}
+local spectatorPanel, observeButton, nextButton, spectatorName
+local refreshSpectator
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "ColorChaosUI"
 gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = player:WaitForChild("PlayerGui")
+gui:SetAttribute("Ready", false)
 
 local function roundCorners(object, radius)
 	local c = Instance.new("UICorner")
@@ -61,13 +72,13 @@ end
 
 local top = Instance.new("Frame")
 top.AnchorPoint = Vector2.new(0.5, 0)
-top.Position, top.Size = UDim2.new(0.5, 0, 0, 8), UDim2.new(0.92, 0, 0, 156)
+top.Position, top.Size = UDim2.new(0.5, 0, 0, 8), UDim2.new(0.92, 0, 0, 188)
 top.BackgroundColor3 = Color3.fromRGB(17, 24, 42)
 top.BackgroundTransparency = 0.08
 top.Parent = gui
 roundCorners(top)
 local topConstraint = Instance.new("UISizeConstraint")
-topConstraint.MaxSize = Vector2.new(760, 156)
+topConstraint.MaxSize = Vector2.new(760, 188)
 topConstraint.Parent = top
 local title = text(top, "COLOR CHAOS", 23, UDim2.fromOffset(14, 9), UDim2.new(1, -100, 0, 29))
 title.TextScaled = true
@@ -78,8 +89,17 @@ local timer = text(top, "--", 24, UDim2.new(1, -78, 0, 9), UDim2.fromOffset(64, 
 timer.TextXAlignment = Enum.TextXAlignment.Right
 local message = text(top, "Conectando con el reactor...", 15, UDim2.fromOffset(14, 44), UDim2.new(1, -28, 0, 44))
 local target = text(top, "", 20, UDim2.fromOffset(14, 91), UDim2.new(1, -28, 0, 28))
+target.TextScaled = true
+local targetLimit = Instance.new("UITextSizeConstraint")
+targetLimit.MinTextSize, targetLimit.MaxTextSize = 11, 20
+targetLimit.Parent = target
+local roundStatus = text(top, "LOBBY · Preparando la siguiente partida", 12, UDim2.fromOffset(14, 123), UDim2.new(1, -28, 0, 20))
+roundStatus.TextScaled = true
+local roundStatusLimit = Instance.new("UITextSizeConstraint")
+roundStatusLimit.MinTextSize, roundStatusLimit.MaxTextSize = 10, 12
+roundStatusLimit.Parent = roundStatus
 local bar = Instance.new("Frame")
-bar.Position, bar.Size = UDim2.fromOffset(14, 127), UDim2.new(1, -28, 0, 12)
+bar.Position, bar.Size = UDim2.fromOffset(14, 151), UDim2.new(1, -28, 0, 10)
 bar.BackgroundColor3 = Color3.fromRGB(49, 60, 82)
 bar.Parent = top
 roundCorners(bar, 6)
@@ -88,6 +108,11 @@ fill.Size = UDim2.fromScale(0, 1)
 fill.BackgroundColor3 = Config.Colors[3].Color
 fill.Parent = bar
 roundCorners(fill, 6)
+local lavaStatus = text(top, "El lobby siempre es una zona segura", 11, UDim2.fromOffset(14, 167), UDim2.new(1, -28, 0, 16))
+lavaStatus.TextScaled = true
+local lavaStatusLimit = Instance.new("UITextSizeConstraint")
+lavaStatusLimit.MinTextSize, lavaStatusLimit.MaxTextSize = 9, 11
+lavaStatusLimit.Parent = lavaStatus
 
 local footer = Instance.new("Frame")
 footer.AnchorPoint = Vector2.new(0.5, 1)
@@ -103,20 +128,29 @@ local topScale = Instance.new("UIScale")
 topScale.Parent = top
 local footerScale = Instance.new("UIScale")
 footerScale.Parent = footer
+local spectatorScale = Instance.new("UIScale")
 local function adaptToScreen()
 	local camera = workspace.CurrentCamera
 	if not camera then return end
 	local touch = UserInputService.TouchEnabled
 	local compact = touch and camera.ViewportSize.Y < 500
-	local factor = compact and 0.72 or 1
-	topScale.Scale, footerScale.Scale = factor, factor
+	local factor = compact and 0.78 or 1
+	topScale.Scale, footerScale.Scale, spectatorScale.Scale = factor, factor, factor
 	-- Touch controls occupy the bottom corners; place the HUD above them.
 	if touch then
 		footer.AnchorPoint = Vector2.new(0.5, 0)
-		footer.Position = UDim2.new(0.5, 0, 0, math.floor(156 * factor) + 18)
+		footer.Position = UDim2.new(0.5, 0, 0, math.floor(188 * factor) + 18)
+		if spectatorPanel then
+			spectatorPanel.AnchorPoint = Vector2.new(0.5, 0)
+			spectatorPanel.Position = UDim2.new(0.5, 0, 0, math.floor(273 * factor) + 28)
+		end
 	else
 		footer.AnchorPoint = Vector2.new(0.5, 1)
 		footer.Position = UDim2.new(0.5, 0, 1, -12)
+		if spectatorPanel then
+			spectatorPanel.AnchorPoint = Vector2.new(0.5, 1)
+			spectatorPanel.Position = UDim2.new(0.5, 0, 1, -109)
+		end
 	end
 end
 local viewportConnection
@@ -136,6 +170,10 @@ balanceConstraint.MinTextSize, balanceConstraint.MaxTextSize = 10, 15
 balanceConstraint.Parent = balance
 local persistence = text(footer, "Cargando progreso", 11, UDim2.fromOffset(12, 31), UDim2.new(0.6, 0, 0, 19))
 local participation = text(footer, "", 11, UDim2.fromOffset(12, 53), UDim2.new(0.58, 0, 0, 24))
+participation.TextScaled = true
+local participationLimit = Instance.new("UITextSizeConstraint")
+participationLimit.MinTextSize, participationLimit.MaxTextSize = 9, 11
+participationLimit.Parent = participation
 
 local overlay = Instance.new("Frame")
 overlay.Size = UDim2.fromScale(1, 1)
@@ -227,11 +265,12 @@ paragraph(helpContent,
 	.. "PUENTES DE MEMORIA\nObserva cinco letras. Actívalas en ese orden y cruza al reactor. Un error reinicia los puentes.\n\n"
 	.. "REPARACIÓN EN EQUIPO\nVe a la estación de la letra indicada y repárala. El objetivo es compartido.\n\n"
 	.. "RESCATE CROMÁTICO\nActiva el panel indicado, cruza a la isla, recoge su chispa y entrégala al reactor. Si el portador cae, la chispa regresa a la isla.\n\n"
+	.. "LAVA Y PLATAFORMAS\nLa lava sube durante la ronda. Los objetivos completados elevan la arena del equipo. Coopera para mantenerte a salvo y reparar el reactor antes de que se termine el tiempo.\n\n"
 	.. "RECOMPENSAS\nColaborar y sobrevivir a una victoria da " .. tostring(Config.WinCoins)
 	.. " monedas y una victoria. Colaborar sin lograrlo da " .. tostring(Config.ParticipationCoins)
 	.. " monedas. Completa misiones diarias y reclama sus monedas en la pestaña Misiones. La experiencia aumenta tu nivel.\n\n"
 	.. "COMPRAS OPCIONALES\nLas monedas compran auras cosméticas. Los paquetes de monedas tienen una cantidad fija. El VIP incluye un aura; no compra victorias. El precio y la confirmación de las compras con Robux aparecen en la ventana oficial de Roblox. Las monedas no se canjean por Robux ni dinero.\n\n"
-	.. "SI CAES O ENTRAS TARDE\nEspera en la plaza hasta la siguiente ronda.\n\n"
+	.. "LOBBY Y ESPECTADORES\nPuedes jugar desde una sola persona. Si caes o entras tarde, espera en el lobby seguro hasta la siguiente ronda. Pulsa OBSERVAR para seguir a los jugadores; SIGUIENTE cambia de jugador y VOLVER AL LOBBY devuelve la cámara a tu personaje.\n\n"
 	.. "ACCESIBILIDAD\nAzul = A · Amarillo = B · Verde = C · Rojo = D. Todas las indicaciones incluyen letras.\n\n"
 	.. "GUARDADO\nStudio usa progreso temporal. En una experiencia publicada, el progreso se guarda automáticamente. Consulta el estado de guardado en la pantalla. Si falla, espera a que se recupere antes de salir.", 16)
 
@@ -444,11 +483,123 @@ local function showToast(content)
 	task.delay(4, function() if toastSerial == serial then toast.Visible = false end end)
 end
 
+local observedDeathConnection
+local function localHumanoid()
+	return player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+end
+
+local function restoreCamera()
+	if observedDeathConnection then observedDeathConnection:Disconnect(); observedDeathConnection = nil end
+	observedId = nil
+	local camera, humanoid = workspace.CurrentCamera, localHumanoid()
+	if camera and humanoid then
+		camera.CameraType = Enum.CameraType.Custom
+		camera.CameraSubject = humanoid
+	end
+end
+
+local function stopSpectating()
+	spectating = false
+	restoreCamera()
+end
+
+local function livingHumanoid(userId)
+	local candidate = Players:GetPlayerByUserId(userId)
+	local humanoid = candidate and candidate.Character and candidate.Character:FindFirstChildOfClass("Humanoid")
+	return humanoid and humanoid.Health > 0 and humanoid or nil, candidate
+end
+
+refreshSpectator = function()
+	local roundActive = latest.Phase == "JUEGO" or latest.Phase == "PREPARACIÓN"
+	local mayObserve = roundActive and not (latest.Participating and latest.Alive)
+	spectatorIds = {}
+	local seen = {}
+	if mayObserve and type(latest.SpectatorIds) == "table" then
+		for _, userId in ipairs(latest.SpectatorIds) do
+			if type(userId) == "number" and userId ~= player.UserId and not seen[userId] and livingHumanoid(userId) then
+				seen[userId] = true
+				table.insert(spectatorIds, userId)
+			end
+		end
+	end
+	if not mayObserve or #spectatorIds == 0 then stopSpectating() end
+	spectatorPanel.Visible = mayObserve and #spectatorIds > 0
+	observeButton.Text = spectating and "VOLVER AL LOBBY" or "OBSERVAR"
+	nextButton.Visible = spectating and #spectatorIds > 1
+	spectatorName.Visible = spectating
+	if not spectating then return end
+	if not table.find(spectatorIds, observedId) then observedId = spectatorIds[1] end
+	local humanoid, candidate = livingHumanoid(observedId)
+	if not humanoid or not workspace.CurrentCamera then return end
+	if workspace.CurrentCamera.CameraSubject ~= humanoid then
+		if observedDeathConnection then observedDeathConnection:Disconnect() end
+		observedDeathConnection = humanoid.Died:Connect(function() task.spawn(refreshSpectator) end)
+		workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+		workspace.CurrentCamera.CameraSubject = humanoid
+	end
+	spectatorName.Text = "OBSERVANDO A " .. string.upper(candidate.DisplayName or candidate.Name)
+end
+
+spectatorPanel = Instance.new("Frame")
+spectatorPanel.Name = "SpectatorControls"
+spectatorPanel.Size = UDim2.new(0.9, 0, 0, 70)
+spectatorPanel.BackgroundColor3 = Color3.fromRGB(17, 24, 42)
+spectatorPanel.BackgroundTransparency = 0.08
+spectatorPanel.Visible = false
+spectatorPanel.Parent = gui
+roundCorners(spectatorPanel)
+local spectatorConstraint = Instance.new("UISizeConstraint")
+spectatorConstraint.MaxSize = Vector2.new(660, 70)
+spectatorConstraint.Parent = spectatorPanel
+spectatorScale.Parent = spectatorPanel
+observeButton = button(spectatorPanel, "OBSERVAR", UDim2.fromOffset(10, 10), UDim2.new(0.57, -15, 0, 32), function()
+	if spectating then stopSpectating() else spectating = true end
+	refreshSpectator()
+end)
+nextButton = button(spectatorPanel, "SIGUIENTE", UDim2.new(0.57, 0, 0, 10), UDim2.new(0.43, -10, 0, 32), function()
+	if #spectatorIds == 0 then return end
+	local index = table.find(spectatorIds, observedId) or 0
+	observedId = spectatorIds[index % #spectatorIds + 1]
+	refreshSpectator()
+end)
+for _, control in ipairs({ observeButton, nextButton }) do
+	control.TextScaled = true
+	local limit = Instance.new("UITextSizeConstraint")
+	limit.MinTextSize, limit.MaxTextSize = 9, 15
+	limit.Parent = control
+end
+spectatorName = text(spectatorPanel, "", 11, UDim2.fromOffset(12, 47), UDim2.new(1, -24, 0, 16))
+spectatorName.TextScaled = true
+local spectatorNameLimit = Instance.new("UITextSizeConstraint")
+spectatorNameLimit.MinTextSize, spectatorNameLimit.MaxTextSize = 9, 11
+spectatorNameLimit.Parent = spectatorName
+adaptToScreen()
+
+Players.PlayerRemoving:Connect(function(leaving)
+	if leaving.UserId == observedId then
+		local remaining = {}
+		for _, userId in ipairs(latest.SpectatorIds or {}) do
+			if userId ~= leaving.UserId then table.insert(remaining, userId) end
+		end
+		latest.SpectatorIds = remaining
+		refreshSpectator()
+	end
+end)
+player.CharacterAdded:Connect(function(character)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not humanoid then return end
+	if spectating then refreshSpectator() else restoreCamera() end
+end)
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+	if spectating then refreshSpectator() end
+end)
+
 stateEvent.OnClientEvent:Connect(function(payload)
+	if type(payload) ~= "table" then return end
 	latest = payload
 	title.Text = payload.Mode or "COLOR CHAOS"
 	title.TextSize = payload.Mode and 18 or 23
-	timer.Text = tostring(payload.Seconds or 0) .. "s"
+	timer.Text = (payload.Seconds or 0) > 0 and (tostring(payload.Seconds) .. "s") or "—"
 	message.Text = payload.Message or ""
 	local colorIndex = payload.DemoCode or payload.Target
 	local color = colorIndex and Config.Colors[colorIndex]
@@ -456,8 +607,29 @@ stateEvent.OnClientEvent:Connect(function(payload)
 		target.Text = (payload.DemoCode and ("PASO " .. tostring(payload.DemoStep or "") .. ": ") or "OBJETIVO: ") .. color.Symbol .. " · " .. color.Name
 		target.TextColor3 = color.Color
 	else
-		target.Text = (payload.Progress or 0) .. " / " .. (payload.Total or 0) .. " objetivos · " .. (payload.Phase or "")
+		if payload.Phase == "LOBBY" then
+			target.Text = "Juega desde " .. tostring(payload.MinimumPlayers or Config.MinimumPlayers or 1) .. " jugador · coopera para ganar"
+		else
+			target.Text = (payload.Progress or 0) .. " / " .. (payload.Total or 0) .. " objetivos del equipo"
+		end
 		target.TextColor3 = Color3.fromRGB(230, 235, 255)
+	end
+	if payload.Phase == "LOBBY" then
+		local ready = payload.ReadyPlayers or 0
+		roundStatus.Text = "LOBBY · " .. tostring(ready) .. (ready == 1 and " jugador listo" or " jugadores listos") .. " · próxima ronda"
+		lavaStatus.Text = "Explora el lobby. La partida empieza automáticamente."
+		lavaStatus.TextColor3 = Color3.fromRGB(188, 213, 240)
+	elseif payload.Phase == "JUEGO" or payload.Phase == "PREPARACIÓN" then
+		roundStatus.Text = tostring(payload.AlivePlayers or 0) .. " / " .. tostring(payload.ParticipantCount or 0)
+			.. " sobrevivientes · " .. tostring(payload.Progress or 0) .. " / " .. tostring(payload.Total or 0) .. " objetivos"
+		local height = type(payload.LavaHeight) == "number" and math.floor(payload.LavaHeight * 10) / 10 or 0
+		local lift = type(payload.PlatformLift) == "number" and math.floor(payload.PlatformLift * 10) / 10 or 0
+		lavaStatus.Text = "LAVA ↑ " .. tostring(height) .. " · ARENA +" .. tostring(lift) .. " · Acertar te eleva"
+		lavaStatus.TextColor3 = Color3.fromRGB(255, 185, 125)
+	else
+		roundStatus.Text = "RESULTADOS · La siguiente ronda empieza desde el lobby"
+		lavaStatus.Text = "El lobby siempre es una zona segura"
+		lavaStatus.TextColor3 = Color3.fromRGB(188, 213, 240)
 	end
 	local ratio = payload.Total and payload.Total > 0 and (payload.Progress or 0) / payload.Total or 0
 	TweenService:Create(fill, TweenInfo.new(0.2), { Size = UDim2.fromScale(math.clamp(ratio, 0, 1), 1) }):Play()
@@ -492,10 +664,12 @@ stateEvent.OnClientEvent:Connect(function(payload)
 	end
 	persistence.Text = payload.Persistence or "Cargando progreso"
 	if payload.Phase == "JUEGO" or payload.Phase == "PREPARACIÓN" then
-		participation.Text = payload.Participating and payload.Alive and "EN EL EQUIPO" or "SIGUIENTE RONDA EN LA PLAZA"
+		participation.Text = payload.Participating and payload.Alive and "EN EL EQUIPO · ¡SUBE Y REPARA!" or "LOBBY SEGURO · SIGUIENTE RONDA"
 	else participation.Text = "COOPERA · EXPLORA · REPARA" end
+	refreshSpectator()
 	if payload.Toast then showToast(payload.Toast) end
 	if payload.OpenShop then openShop() end
+	gui:SetAttribute("Ready", true)
 end)
 
 UserInputService.InputBegan:Connect(function(input, processed)

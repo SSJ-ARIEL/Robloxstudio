@@ -1,0 +1,66 @@
+{
+  "name": "ColorChaosUpdate",
+  "tree": {
+    "$className": "Model",
+    "Installer": {
+      "$path": "Installer.luau"
+    },
+    "ReplicatedStorage": {
+      "$className": "Folder",
+      "ColorChaos": {
+        "$className": "Folder",
+        "Config": {
+          "$path": "../src/shared/Config.luau"
+        },
+        "ProfileLedger": {
+          "$path": "../src/shared/ProfileLedger.luau"
+        },
+        "Progression": {
+          "$path": "../src/shared/Progression.luau"
+        },
+        "Rules": {
+          "$path": "../src/shared/Rules.luau"
+        }
+      }
+    },
+    "ServerScriptService": {
+      "$className": "Folder",
+      "ColorChaosServer": {
+        "$className": "Folder",
+        "Commerce": {
+          "$path": "../src/server/Commerce.luau"
+        },
+        "Main": {
+          "$path": "../src/server/Main.server.luau",
+          "$properties": {
+            "Disabled": true
+          }
+        }
+      }
+    },
+    "StarterPlayerScripts": {
+      "$className": "Folder",
+      "ColorChaosClient": {
+        "$className": "Folder",
+        "Bootstrap": {
+          "$path": "../src/client/Bootstrap.client.luau",
+          "$properties": {
+            "Disabled": true
+          }
+        },
+        "Main": {
+          "$path": "../src/client/Main.client.luau",
+          "$properties": {
+            "Disabled": true
+          }
+        }
+      }
+    },
+    "Workspace": {
+      "$className": "Folder",
+      "ColorChaosWorld": {
+        "$path": "../scene/color-chaos-world.project.json"
+      }
+    }
+  }
+}

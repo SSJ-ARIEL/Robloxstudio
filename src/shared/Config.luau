@@ -1,6 +1,6 @@
 -- Configuration shared by the authoritative server and presentation client.
 local Config = {}
-Config.Version = "1.0.0"
+Config.Version = "1.1.0"
 Config.MaxCoins = 100000000
 Config.MaxReceipts = 10000 -- stop NEW sales before receipt history approaches datastore limits
 Config.XPPerRound = 15
@@ -32,6 +32,7 @@ Config.SaveInterval = 75
 Config.WinCoins = 35
 Config.ParticipationCoins = 10
 Config.InteractionDistance = 13
+Config.Lava = { StartHeight = 10, EndHeight = 31, MaxLift = 12, HalfWidth = 80, MinZ = -110, MaxZ = 66 }
 Config.Colors = {
 	{ Name = "AZUL", Symbol = "A", Color = Color3.fromRGB(55, 155, 255) },
 	{ Name = "AMARILLO", Symbol = "B", Color = Color3.fromRGB(255, 214, 66) },

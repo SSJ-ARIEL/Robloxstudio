@@ -1,24 +1,30 @@
-# Color Chaos — entrega 1.0.0
+# Color Chaos — entrega 1.1.0
 
-Este repositorio contiene dos experiencias independientes. El segundo juego, **Color Rush: Corre y Recuerda**, está en [games/color-rush](games/color-rush/README.md), con su propio proyecto Rojo, archivo de Studio, personajes, compras y guías. La configuración de la raíz sigue correspondiendo a Color Chaos.
+Este repositorio contiene dos experiencias independientes. El segundo juego, **Color Rush: Corre y Recuerda**, está en [games/color-rush](https://github.com/SSJ-ARIEL/Robloxstudio/tree/main/games/color-rush), con su propio proyecto Rojo, archivo de Studio, personajes, compras y guías. La configuración de la raíz sigue correspondiendo a Color Chaos.
 
-Experiencia cooperativa para 1–12 jugadores. Una máquina perdió la energía de la ciudad: el equipo recupera colores, reconstruye puentes y rescata chispas para reparar el reactor. Código, escenarios y gráficos creados para este proyecto; el nombre es provisional.
+Experiencia cooperativa para 1–12 jugadores. El equipo reconstruye puentes, repara estaciones y rescata chispas mientras sube la lava. Cada avance eleva las plataformas compartidas. El lobby, la tienda, el mirador y el punto de aparición están guardados dentro del archivo y aparecen incluso antes de arrancar los scripts. Código, escenarios y gráficos creados para este proyecto; el nombre es provisional.
 
 ## Descargar y publicar
 
-- [Descargar proyecto completo en ZIP](https://github.com/SSJ-ARIEL/Robloxstudio/archive/refs/heads/main.zip).
+- **[Descargar Color Chaos con lobby en ZIP](https://github.com/SSJ-ARIEL/Robloxstudio/raw/refs/heads/main/downloads/ColorChaos-lobby-completo.zip)**.
+- **[Actualizar tu juego publicado conservando tus cuatro IDs](docs/ACTUALIZAR_LOBBY.md)**.
+- [Descargar archivo binario para Studio](https://github.com/SSJ-ARIEL/Robloxstudio/raw/refs/heads/main/downloads/ColorChaos.rbxl).
 - [Descargar juego para Studio](https://github.com/SSJ-ARIEL/Robloxstudio/raw/refs/heads/main/downloads/ColorChaos.rbxlx).
 - **[Pasos concretos para publicar y activar compras](docs/PUBLICAR.md)**.
 - [Productos, beneficios e identificadores](docs/PRODUCTOS.md).
 - [Cómo actualizar sin rehacer el juego](docs/OPERACION.md).
 
-Extrae el ZIP, abre `downloads/ColorChaos.rbxlx` desde **File → Open from File** en Roblox Studio y publica desde tu cuenta. El mapa se genera cuando inicia el servidor. Para abrir y publicar el archivo no necesitas Rojo.
+Si ya publicaste Color Chaos, importa `downloads/ColorChaosUpdate.rbxmx` sobre esa misma experiencia y sigue [la guía de actualización](docs/ACTUALIZAR_LOBBY.md): el instalador conserva tu Config completo y crea una copia local de los objetos anteriores. Para una copia nueva, abre `downloads/ColorChaos.rbxl` desde **Archivo → Abrir un archivo**; esta plantilla tiene los IDs en cero. Ninguno de estos métodos requiere instalar Rojo.
 
 ## Funciones incluidas
 
 | Sistema | Función |
 | --- | --- |
-| Rondas | Vestíbulo, cronómetro, rotación automática y resultados compartidos. |
+| Lobby | Piso y spawn permanentes, tienda, instrucciones, escaleras y mirador seguro. |
+| Rondas | Inicio desde una persona, cronómetro, rotación automática y resultados compartidos. |
+| Lava | Sube durante el juego; cada nuevo avance eleva al equipo. Los errores de memoria no permiten acumular altura repitiendo pasos. |
+| Caídas | Retorno al lobby, sin perderse en el vacío ni reingresar a la ronda en curso. |
+| Espectadores | Cámara opcional para observar jugadores y volver a tu avatar. |
 | Puentes de memoria | Observar cinco letras, activar su secuencia y llegar al reactor. |
 | Reparación en equipo | Activar ocho estaciones del color solicitado. |
 | Rescate cromático | Activar un puente, recuperar una chispa y entregarla. |
@@ -57,7 +63,7 @@ Instala el plugin con Studio cerrado. Después abre tu experiencia existente, en
 
 En macOS puedes instalar el binario oficial apropiado para tu arquitectura y usar `rojo plugin install` y `rojo serve default.project.json` desde la carpeta del proyecto. La documentación oficial detalla la [instalación](https://rojo.space/docs/v7/getting-started/installation/).
 
-Una corrección actualiza los scripts de la misma experiencia. Conservando la identidad y `Config.DataStoreName`, no necesitas rehacer el juego ni borrar el progreso. GitHub guarda versiones del código; Roblox publica el contenido y administra servidores/pagos.
+Una corrección actualiza la misma experiencia. Conservando su identidad y `Config.DataStoreName`, no necesitas rehacer el juego ni borrar el progreso. El actualizador incluido conserva automáticamente Config; una sincronización directa de Rojo requiere conservar primero los IDs en el código fuente. GitHub guarda versiones del código; Roblox publica el contenido y administra servidores/pagos.
 
 ## Validación para desarrollo
 
@@ -68,7 +74,13 @@ COLOR_CHAOS_TOOLS_DIR=/workspace/.tools/color-chaos bash tools/setup.sh
 COLOR_CHAOS_TOOLS_DIR=/workspace/.tools/color-chaos bash tools/validate.sh
 ```
 
-La instalación utiliza publicaciones oficiales HTTPS y SHA-256 fijado. Ejecuta instalación y validación en ese orden. Se compilan 12 archivos Luau y se ejecutan 200 comprobaciones: 20 de reglas, 29 de misiones, 25 de registro de recibos, 91 de comercio y 35 del servidor integrado con servicios simulados. Rojo genera `build/ColorChaos.rbxlx`.
+La instalación utiliza publicaciones oficiales HTTPS y SHA-256 fijado. Ejecuta instalación y validación en ese orden. La validación compila Luau, comprueba reglas y compras, y ejecuta el servidor, cliente, bienvenida e instalador con servicios simulados. Rojo genera `build/ColorChaos.rbxlx`. Los resultados de esta entrega están en [ESTADO.md](docs/ESTADO.md).
+
+Para generar archivos completos, modelos de actualización inactivos y ZIP:
+
+```sh
+COLOR_CHAOS_TOOLS_DIR=/workspace/.tools/color-chaos python3 tools/package-release.py
+```
 
 Las simulaciones no ejecutan física, renderizado, red, DataStore ni facturación real de Roblox. Consulta [el estado de la entrega](docs/ESTADO.md) para distinguir código entregado, configuración pendiente y operaciones no verificadas. El generador opcional de gráficos `tools/make-icons.py` requiere Pillow; no hace falta ejecutarlo para publicar porque los PNG ya están incluidos.
 
@@ -78,6 +90,9 @@ Las simulaciones no ejecutan física, renderizado, red, DataStore ni facturació
 - `src/server/Commerce.luau`: compras oficiales y verificación VIP.
 - `src/shared/`: configuración, reglas, misiones y registro de recibos.
 - `src/client/Main.client.luau`: interfaz y precios locales.
+- `src/client/Bootstrap.client.luau`: bienvenida independiente del inicio del servidor.
+- `scene/`: lobby y escenario incluidos antes de ejecutar scripts.
+- `release/Installer.luau`: actualización conservando Config y copia local reversible.
 - `assets/`: PNG y SVG originales para el Dashboard.
 - `downloads/ColorChaos.rbxlx`: juego generado entregado.
 - `docs/`: publicación, catálogo, mantenimiento y estado.

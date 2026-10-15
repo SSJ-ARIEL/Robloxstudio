@@ -4,6 +4,8 @@ Esta guía es para Windows. Puedes abrir y publicar el juego **sin instalar Rojo
 
 Hay tres cosas diferentes: GitHub guarda los archivos, Roblox Studio abre y publica el juego, y Roblox administra los servidores y los pagos. No necesitas alquilar un servidor.
 
+**Si Color Chaos ya está publicado y configuraste las compras, usa [Actualizar el lobby](ACTUALIZAR_LOBBY.md). Ese método conserva automáticamente tus IDs y actualiza la misma experiencia. Los siguientes pasos sirven para una primera publicación.**
+
 ## 1. Descargar el juego
 
 1. Abre [Descargar proyecto completo](https://github.com/SSJ-ARIEL/Robloxstudio/archive/refs/heads/main.zip). Si el repositorio es privado, inicia sesión con la cuenta que tiene acceso.
@@ -17,7 +19,7 @@ Hay tres cosas diferentes: GitHub guarda los archivos, Roblox Studio abre y publ
 2. En Studio, selecciona **File → Open from File / Archivo → Abrir desde archivo**.
 3. Elige `downloads/ColorChaos.rbxlx`.
 
-El mapa se construye al iniciar el servidor. Que el editor no muestre todo el escenario antes de ejecutar el juego es normal. No pegues scripts sueltos ni añadas modelos gratuitos para que aparezca.
+Desde la versión 1.1.0 el lobby, el mirador, el piso y el punto de aparición se ven en el editor antes de ejecutar el juego. Solo los desafíos de cada ronda se construyen al arrancar el servidor. Si el archivo se ve vacío, comprueba que abriste la nueva descarga de Color Chaos.
 
 ## 3. Crear la experiencia en tu cuenta
 
@@ -26,7 +28,7 @@ El mapa se construye al iniciar el servidor. Que el editor no muestre todo el es
 3. Usa **Color Chaos: Reactor Cromático** como nombre de trabajo. El nombre sigue pendiente de comprobar; cámbialo si entra en conflicto con otra marca o experiencia.
 4. Puedes usar esta descripción:
 
-   > Recupera la energía de una ciudad que perdió sus colores. Recuerda secuencias, repara mecanismos y rescata chispas con tu equipo. Completa misiones y personaliza tu aura. Los colores incluyen letras para ayudarte a reconocerlos.
+   > La lava sube: coopera para elevar las plataformas y reparar el reactor. Recuerda secuencias, repara estaciones y rescata chispas. Explora el lobby, observa las partidas desde el mirador, completa misiones y personaliza tu aura. Juega solo o con amigos. Los colores incluyen letras para ayudarte a reconocerlos.
 
 5. Guarda/publica. Anota el enlace de la experiencia.
 6. En **Game Settings / Configuración del juego**, o en la configuración del lugar del Creator Dashboard, establece **Max Players / Máximo de jugadores: 12**.

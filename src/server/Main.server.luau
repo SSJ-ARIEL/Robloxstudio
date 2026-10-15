@@ -28,12 +28,17 @@ local lastActions = {}
 local initializing = {}
 local currentRound = nil
 local state = { Phase = "LOBBY", Message = "Preparando el reactor...", Seconds = 0, Progress = 0, Total = 0 }
-local store = DataStoreService:GetDataStore(Config.DataStoreName)
+-- A storage outage must never prevent the lobby or rounds from starting.
+local store
+local storageOK, storageResult = pcall(function() return DataStoreService:GetDataStore(Config.DataStoreName) end)
+if storageOK then store = storageResult else warn("Color Chaos: guardado no disponible; la partida continuará sin ventas de monedas.") end
 local sessionId = game.JobId .. HttpService:GenerateGUID(false)
 local closing = false
-local savingEnabled = not RunService:IsStudio()
+local savingEnabled = store ~= nil and not RunService:IsStudio()
 local random = Random.new()
 local commerce
+-- Defaults also support updating an installed game while retaining its entire Config.
+local lavaSettings = Config.Lava or { StartHeight = 10, EndHeight = 31, MaxLift = 12, HalfWidth = 80, MinZ = -110, MaxZ = 66 }
 
 local function cleanProfile(raw)
 	local data = Rules.cleanProfile(raw, #Config.Palettes)
@@ -47,6 +52,25 @@ local function personal(player, extra)
 	local payload = table.clone(state)
 	payload.Participating = participants[player] ~= nil
 	payload.Alive = participants[player] ~= nil and participants[player].Alive
+	payload.ReadyPlayers, payload.AlivePlayers, payload.ParticipantCount = 0, 0, 0
+	payload.MinimumPlayers = Config.MinimumPlayers
+	payload.SpectatorIds = {}
+	for _, online in ipairs(Players:GetPlayers()) do
+		local humanoid = online.Character and online.Character:FindFirstChildOfClass("Humanoid")
+		if profiles[online] and humanoid and humanoid.Health > 0 and online.Character:FindFirstChild("HumanoidRootPart") then
+			payload.ReadyPlayers += 1
+		end
+		local entry = participants[online]
+		if entry then
+			payload.ParticipantCount += 1
+			if entry.Alive then
+				payload.AlivePlayers += 1
+				table.insert(payload.SpectatorIds, online.UserId)
+			end
+		end
+	end
+	table.sort(payload.SpectatorIds)
+	payload.PlatformLift = currentRound and currentRound.Elevation or 0
 	if record then
 		payload.Profile = { Coins = record.Data.Coins, Wins = record.Data.Wins,
 			Selected = record.Data.Selected, Owned = record.Data.Owned, VIP = record.VIP == true }
@@ -246,13 +270,18 @@ commerce = Commerce.new({
 })
 commerce.start()
 
-local world = Instance.new("Folder")
-world.Name = "ColorChaosWorld"
-world.Parent = workspace
+-- The release already contains this world, its floor and its neutral spawn.
+-- Fallbacks keep source-only installs playable as well.
+local world = workspace:FindFirstChild("ColorChaosWorld")
+if not world then
+	world = Instance.new("Folder")
+	world.Name, world.Parent = "ColorChaosWorld", workspace
+end
 local function part(parent, name, size, position, color)
 	local p = Instance.new("Part")
 	p.Name, p.Size, p.Position = name, size, position
 	p.Anchored = true
+	p.CanCollide = true
 	p.Material = Enum.Material.SmoothPlastic
 	p.Color = color or Color3.fromRGB(35, 42, 67)
 	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
@@ -261,7 +290,14 @@ local function part(parent, name, size, position, color)
 end
 
 local function label(parent, text, offset, compact)
+	local old = parent:FindFirstChild("Caption")
+	if old then old:Destroy() end
+	local static = parent:FindFirstChild("StaticSign")
+	local panel = static and static:FindFirstChild("Panel")
+	local heading = panel and panel:FindFirstChild("Heading")
+	if heading then return heading end
 	local gui = Instance.new("BillboardGui")
+	gui.Name = "Caption"
 	gui.Size = compact and UDim2.fromOffset(110, 36) or UDim2.fromOffset(270, 75)
 	gui.StudsOffset = offset or Vector3.new(0, 4, 0)
 	gui.MaxDistance = 170
@@ -282,17 +318,21 @@ local function label(parent, text, offset, compact)
 	return t
 end
 
-local lobby = part(world, "Plaza del reactor", Vector3.new(90, 3, 70), Vector3.new(0, 5, 145))
-local spawn = Instance.new("SpawnLocation")
-spawn.Name = "LobbySpawn"
-spawn.Anchored, spawn.Neutral = true, true
-spawn.Size, spawn.Position = Vector3.new(10, 1, 10), Vector3.new(0, 7, 153)
+local lobby = world:FindFirstChild("Plaza del reactor") or part(world, "Plaza del reactor", Vector3.new(110, 3, 80), Vector3.new(0, 5, 145))
+lobby.Anchored, lobby.CanCollide = true, true
+local spawn = world:FindFirstChild("LobbySpawn")
+if not spawn then
+	spawn = Instance.new("SpawnLocation")
+	spawn.Name = "LobbySpawn"
+	spawn.Size, spawn.Position = Vector3.new(10, 1, 10), Vector3.new(0, 7, 153)
+	spawn.Parent = world
+end
+spawn.Anchored, spawn.Neutral, spawn.CanCollide = true, true, true
 spawn.Color, spawn.Duration = Config.Colors[1].Color, 0
-spawn.Parent = world
-label(part(world, "Título", Vector3.new(1, 1, 1), Vector3.new(0, 17, 168)), "COLOR CHAOS\nRepara el mundo con tus amigos")
-local instructions = part(world, "Instrucciones", Vector3.new(1, 1, 1), Vector3.new(-27, 9, 144))
-label(instructions, "1. Espera la ronda\n2. Sigue letras y colores\n3. Coopera y gana monedas")
-local shop = part(world, "Tienda de auras", Vector3.new(8, 4, 8), Vector3.new(27, 8, 144), Config.Palettes[4].Color)
+label(world:FindFirstChild("Título") or part(world, "Título", Vector3.new(1, 1, 1), Vector3.new(0, 17, 168)), "COLOR CHAOS\nRepara el reactor antes de que suba la lava")
+local instructions = world:FindFirstChild("Instrucciones") or part(world, "Instrucciones", Vector3.new(1, 1, 1), Vector3.new(-27, 9, 144))
+label(instructions, "1. Espera aquí, estás a salvo\n2. Repara para elevar al equipo\n3. Evita la lava y gana monedas")
+local shop = world:FindFirstChild("Tienda de auras") or part(world, "Tienda de auras", Vector3.new(8, 4, 8), Vector3.new(27, 8, 144), Config.Palettes[4].Color)
 label(shop, "TIENDA\nAuras, monedas y VIP")
 local shopPrompt = Instance.new("ProximityPrompt")
 shopPrompt.ActionText, shopPrompt.ObjectText = "Abrir", "Auras"
@@ -300,8 +340,26 @@ shopPrompt.RequiresLineOfSight = false
 shopPrompt.MaxActivationDistance = Config.InteractionDistance
 shopPrompt.Parent = shop
 shopPrompt.Triggered:Connect(function(player) personal(player, { OpenShop = true }) end)
-for i, c in ipairs(Config.Colors) do
-	part(world, "Decoración " .. c.Name, Vector3.new(5, 14 + i * 2, 5), Vector3.new(-35 + (i - 1) * 23, 5, 116), c.Color)
+local lava = world:FindFirstChild("LavaSurface") or part(world, "LavaSurface", Vector3.new(160, 0.8, 176), Vector3.new(0, 9.6, -22), Color3.fromRGB(255, 91, 30))
+lava.Anchored, lava.CanCollide, lava.Material = true, false, Enum.Material.Neon
+lava.Size = Vector3.new(lavaSettings.HalfWidth * 2, lava.Size.Y, lavaSettings.MaxZ - lavaSettings.MinZ)
+local function setLava(height)
+	lava.Position = Vector3.new(0, height - lava.Size.Y / 2, (lavaSettings.MinZ + lavaSettings.MaxZ) / 2)
+	state.LavaHeight = height
+end
+setLava(lavaSettings.StartHeight)
+local previewParts = {}
+local previewLabels = {}
+local preview = world:FindFirstChild("ArenaPreview")
+if preview then
+	for _, object in ipairs(preview:GetDescendants()) do
+		if object:IsA("BasePart") then table.insert(previewParts, { Part = object, Transparency = object.Transparency }) end
+		if object:IsA("BillboardGui") then table.insert(previewLabels, object) end
+	end
+end
+local function showPreview(visible)
+	for _, item in ipairs(previewParts) do item.Part.Transparency = visible and item.Transparency or 1 end
+	for _, gui in ipairs(previewLabels) do gui.Enabled = visible end
 end
 workspace.FallenPartsDestroyHeight = -60
 
@@ -316,6 +374,34 @@ local function teleport(player, position)
 		r.AssemblyAngularVelocity = Vector3.zero
 		player.Character:PivotTo(CFrame.new(position))
 	end
+end
+
+local function arenaPosition(round, position)
+	return Vector3.new(position.X, position.Y + round.Elevation, position.Z)
+end
+
+local function liftArena(round)
+	-- Only new high-water progress raises the arena. Replaying an already solved
+	-- memory prefix cannot farm extra height, and a mistake cannot drop teammates.
+	round.HighestProgress = math.max(round.HighestProgress, round.Progress)
+	local elevation = lavaSettings.MaxLift * math.min(1, round.HighestProgress / round.Total)
+	local delta = elevation - round.Elevation
+	if delta <= 0 then return end
+	round.Elevation = elevation
+	for _, object in ipairs(round.Model:GetDescendants()) do
+		if object:IsA("BasePart") then
+			local p = object.Position
+			object.Position = Vector3.new(p.X, p.Y + delta, p.Z)
+		end
+	end
+	for player, entry in pairs(participants) do
+		local r = root(player)
+		if entry.Alive and r then
+			local p = r.Position
+			teleport(player, Vector3.new(p.X, p.Y + delta, p.Z))
+		end
+	end
+	state.PlatformLift = elevation
 end
 
 local function valid(player, target, round)
@@ -342,6 +428,7 @@ end
 
 local function progress(round, amount)
 	round.Progress += amount
+	liftArena(round)
 	state.Progress = round.Progress
 	if round.Progress >= round.Total then round.Success = true end
 	broadcast()
@@ -365,7 +452,7 @@ local function newArena(mode)
 	local model = Instance.new("Model")
 	model.Name = "Ronda"
 	model.Parent = world
-	local round = { Model = model, Mode = mode.Id, Progress = 0, Total = 6, Success = false }
+	local round = { Model = model, Mode = mode.Id, Progress = 0, Total = 6, Success = false, Elevation = 0, HighestProgress = 0 }
 	currentRound = round
 	if mode.Id == "memory" then
 		part(model, "Inicio", Vector3.new(38, 3, 26), Vector3.new(0, 20, 37))
@@ -381,11 +468,27 @@ local function newArena(mode)
 	return round
 end
 
+local function outlinePlatform(parent, platform, color)
+	-- Mark the actual walkable edges above the lava; all trim rises with the arena.
+	local p, s = platform.Position, platform.Size
+	for i, edge in ipairs({
+		{ Size = Vector3.new(s.X, 0.16, 0.2), Position = Vector3.new(p.X, p.Y + s.Y / 2 + 0.1, p.Z - s.Z / 2 + 0.15) },
+		{ Size = Vector3.new(s.X, 0.16, 0.2), Position = Vector3.new(p.X, p.Y + s.Y / 2 + 0.1, p.Z + s.Z / 2 - 0.15) },
+		{ Size = Vector3.new(0.2, 0.16, s.Z), Position = Vector3.new(p.X - s.X / 2 + 0.15, p.Y + s.Y / 2 + 0.1, p.Z) },
+		{ Size = Vector3.new(0.2, 0.16, s.Z), Position = Vector3.new(p.X + s.X / 2 - 0.15, p.Y + s.Y / 2 + 0.1, p.Z) },
+	}) do
+		local trim = part(parent, platform.Name .. " · borde " .. i, edge.Size, edge.Position, color)
+		trim.Material, trim.CanCollide, trim.CanTouch, trim.CanQuery = Enum.Material.Neon, false, false, false
+	end
+end
+
 local function memory(round)
 	round.Total = 5
 	round.Sequence, round.Bridges = {}, {}
 	for i = 1, round.Total do round.Sequence[i] = random:NextInteger(1, 4) end
 	local goal = part(round.Model, "Reactor de llegada", Vector3.new(28, 3, 16), Vector3.new(0, 20, -47), Config.Colors[3].Color)
+	outlinePlatform(round.Model, round.Model:FindFirstChild("Inicio"), Config.Colors[1].Color)
+	outlinePlatform(round.Model, goal, Config.Colors[3].Color)
 	label(goal, "ACTIVA LOS PUENTES\nLuego llega aquí")
 	local goalPrompt = prompt(goal, "Reparar reactor", function(player)
 		if not valid(player, goal, round) then return end
@@ -409,7 +512,7 @@ local function memory(round)
 				round.Step, round.Progress, state.Progress = 0, 0, 0
 				goalPrompt.Enabled = false
 				for teammate, entry in pairs(participants) do
-					if entry.Alive then teleport(teammate, Vector3.new(random:NextInteger(-10, 10), 25, 34)) end
+					if entry.Alive then teleport(teammate, arenaPosition(round, Vector3.new(random:NextInteger(-10, 10), 25, 34))) end
 				end
 				task.spawn(function()
 					for step, code in ipairs(round.Sequence) do
@@ -427,7 +530,9 @@ local function memory(round)
 			else
 				contribute(player)
 				round.Step += 1
-				local bridge = part(round.Model, "Puente " .. round.Step, Vector3.new(18, 2, 12), Vector3.new(0, 20.5, 23 - (round.Step - 1) * 13), color.Color)
+				local bridge = part(round.Model, "Puente " .. round.Step, Vector3.new(18, 2, 12), arenaPosition(round, Vector3.new(0, 20.5, 23 - (round.Step - 1) * 13)), color.Color)
+				-- Keep trim under the bridge so replay destroys both together.
+				outlinePlatform(bridge, bridge, Color3.fromRGB(235, 246, 255))
 				table.insert(round.Bridges, bridge)
 				progress(round, 1)
 				goalPrompt.Enabled = round.Step == #round.Sequence
@@ -442,6 +547,7 @@ local function relay(round)
 	round.Total = 8
 	round.Target = random:NextInteger(1, 4)
 	state.Target = round.Target
+	outlinePlatform(round.Model, round.Model:FindFirstChild("Arena"), Config.Colors[1].Color)
 	local positions = { Vector3.new(-30, 24, -28), Vector3.new(30, 24, -28), Vector3.new(-30, 24, 24), Vector3.new(30, 24, 24) }
 	local core = part(round.Model, "Reactor", Vector3.new(8, 10, 8), Vector3.new(0, 27, 0), Config.Colors[1].Color)
 	core.Material = Enum.Material.Neon
@@ -473,6 +579,7 @@ local function rescue(round)
 	round.Target = random:NextInteger(1, 4)
 	round.Carrier, round.Active = nil, false
 	state.Target = round.Target
+	outlinePlatform(round.Model, round.Model:FindFirstChild("Arena"), Config.Colors[3].Color)
 	-- The central floor stops at z=-46. Islands sit across the gap.
 	local core = part(round.Model, "Reactor receptor", Vector3.new(9, 5, 9), Vector3.new(0, 24, 12), Color3.fromRGB(230, 235, 255))
 	label(core, "ENTREGA LA CHISPA AQUÍ")
@@ -480,6 +587,7 @@ local function rescue(round)
 	for i, color in ipairs(Config.Colors) do
 		local x = -33 + (i - 1) * 22
 		local island = part(round.Model, "Isla " .. color.Name, Vector3.new(16, 3, 16), Vector3.new(x, 20, -75), color.Color)
+		outlinePlatform(round.Model, island, color.Color)
 		label(island, color.Symbol .. " · " .. color.Name, Vector3.new(0, 4, 0), true)
 		local spark = part(round.Model, "Chispa " .. color.Name, Vector3.new(3, 3, 3), Vector3.new(x, 25, -75), color.Color)
 		spark.Shape, spark.Material = Enum.PartType.Ball, Enum.Material.Neon
@@ -509,7 +617,8 @@ local function rescue(round)
 			if not valid(player, node, round) or round.Active or round.Target ~= i then return end
 			contribute(player)
 			round.Active = true
-			round.Bridge = part(round.Model, "Puente de rescate", Vector3.new(12, 2, 31), Vector3.new(x, 20.5, -55), color.Color)
+			round.Bridge = part(round.Model, "Puente de rescate", Vector3.new(12, 2, 31), arenaPosition(round, Vector3.new(x, 20.5, -55)), color.Color)
+			outlinePlatform(round.Bridge, round.Bridge, Color3.fromRGB(235, 246, 255))
 			state.Message = "Puente listo. Recoge la chispa " .. color.Symbol .. " y vuelve al reactor."
 			broadcast()
 		end)
@@ -535,7 +644,7 @@ local function rescue(round)
 		round.Target, state.Target = nextTarget, nextTarget
 		-- Bring teammates off the old island before removing their route.
 		for teammate, entry in pairs(participants) do
-			if entry.Alive then teleport(teammate, Vector3.new(random:NextInteger(-10, 10), 25, 28)) end
+			if entry.Alive then teleport(teammate, arenaPosition(round, Vector3.new(random:NextInteger(-10, 10), 25, 28))) end
 		end
 		state.Message = "¡Chispa entregada! Activa el siguiente puente."
 		broadcast()
@@ -546,6 +655,8 @@ local function eliminate(player)
 	local entry = participants[player]
 	if entry and entry.Alive then
 		entry.Alive = false
+		local r = root(player)
+		if r then r.Anchored = false end
 		if currentRound and currentRound.Carrier == player then
 			currentRound.ResetCarrier()
 			state.Message = "La chispa volvió a su isla. Otro jugador puede recogerla."
@@ -568,6 +679,7 @@ end
 local function onPlayer(player)
 	if initializing[player] or profiles[player] then return end
 	initializing[player] = true
+	player.RespawnLocation = spawn
 	player.CharacterAdded:Connect(function(character) onCharacter(player, character) end)
 	if player.Character then task.spawn(onCharacter, player, player.Character) end
 	local data = cleanProfile(nil)
@@ -600,6 +712,39 @@ local function onPlayer(player)
 	stats(player); cosmetic(player); personal(player)
 	task.spawn(function() commerce.refreshPasses(player); if player.Parent then personal(player) end end)
 end
+
+-- Monitor preparation as well as play. Recover falls by returning to the safe
+-- lobby rather than leaving an avatar falling until Roblox destroys it.
+task.spawn(function()
+	while not closing do
+		task.wait(0.1)
+		local round = currentRound
+		if round and state.Phase == "JUEGO" and not round.Success then
+			local fraction = math.clamp((os.clock() - round.StartedAt) / Config.RoundSeconds, 0, 1)
+			setLava(lavaSettings.StartHeight + (lavaSettings.EndHeight - lavaSettings.StartHeight) * fraction)
+		end
+		for _, player in ipairs(Players:GetPlayers()) do
+			local r = root(player)
+			local entry = participants[player]
+			if entry and entry.Alive and round and (state.Phase == "PREPARACIÓN" or state.Phase == "JUEGO") then
+				local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+				local inLava = r and math.abs(r.Position.X) <= lavaSettings.HalfWidth and r.Position.Z >= lavaSettings.MinZ and r.Position.Z <= lavaSettings.MaxZ
+				local footOffset = humanoid and ((humanoid.HipHeight or 2) + (r and r.Size and r.Size.Y or 2) / 2) or 3
+				if humanoid and humanoid.RigType == Enum.HumanoidRigType.R6 then
+					local leg = player.Character:FindFirstChild("Left Leg")
+					footOffset += leg and leg.Size.Y or 2
+				end
+				if not r or not humanoid or humanoid.Health <= 0 or r.Position.Y < 5 or (inLava and r.Position.Y - footOffset <= (state.LavaHeight or lavaSettings.StartHeight)) then
+					eliminate(player)
+					teleport(player, Vector3.new(0, 11, 153))
+				end
+			elseif r and r.Position.Y < 0 then
+				-- Lobby visitors and eliminated players are never part of lava checks.
+				teleport(player, Vector3.new(0, 11, 153))
+			end
+		end
+	end
+end)
 
 Players.PlayerAdded:Connect(onPlayer)
 for _, player in ipairs(Players:GetPlayers()) do task.spawn(onPlayer, player) end
@@ -669,7 +814,9 @@ end)
 local modeIndex = 0
 while not closing do
 	participants = {}
-	state = { Phase = "LOBBY", Message = "La ciudad perdió sus colores. ¡Reparemos su reactor!", Progress = 0, Total = 0 }
+	state = { Phase = "LOBBY", Message = "Estás a salvo en el lobby. La siguiente ronda comienza pronto.", Progress = 0, Total = 0 }
+	setLava(lavaSettings.StartHeight)
+	showPreview(true)
 	for remaining = Config.Intermission, 1, -1 do
 		state.Seconds = remaining; broadcast(); task.wait(1)
 	end
@@ -685,13 +832,16 @@ while not closing do
 	modeIndex = modeIndex % #Config.Modes + 1
 	local mode = Config.Modes[modeIndex]
 	local round = newArena(mode)
+	showPreview(false)
 	state = { Phase = "PREPARACIÓN", Mode = mode.Name, Message = mode.Hint, Progress = 0, Total = 0, Seconds = Config.RoundSeconds }
+	setLava(lavaSettings.StartHeight)
 	if mode.Id == "memory" then memory(round) elseif mode.Id == "relay" then relay(round) else rescue(round) end
 	state.Total = round.Total
 	for i, player in ipairs(ready) do
 		if i <= Config.MaxParticipants then
 			participants[player] = { Alive = true, Contributed = false, LastInteraction = 0 }
 			teleport(player, Vector3.new(-10 + ((i - 1) % 5) * 5, 25, 34 - math.floor((i - 1) / 5) * 5))
+			root(player).Anchored = true
 		end
 	end
 	broadcast(); task.wait(3)
@@ -705,6 +855,11 @@ while not closing do
 		state.Message = "Activa la secuencia en orden y cruza al reactor."
 	end
 	state.Phase = "JUEGO"
+	round.StartedAt = os.clock()
+	for player, entry in pairs(participants) do
+		local r = root(player)
+		if entry.Alive and r then r.Anchored = false end
+	end
 	for remaining = Config.RoundSeconds, 0, -1 do
 		state.Seconds = remaining; broadcast()
 		local alive = false
@@ -740,5 +895,7 @@ while not closing do
 	end
 	currentRound = nil
 	Debris:AddItem(round.Model, 0)
+	showPreview(true)
+	setLava(lavaSettings.StartHeight)
 	for remaining = Config.ResultSeconds, 1, -1 do state.Seconds = remaining; broadcast(); task.wait(1) end
 end

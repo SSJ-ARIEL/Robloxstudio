@@ -1,26 +1,45 @@
-# Estado de la entrega 1.0.0
+# Estado de Color Chaos 1.1.0
 
-Fecha: 11 de octubre de 2026. Esta es la entrega del código y los recursos del alcance acordado, preparada para abrir en Studio y configurar en la cuenta del propietario.
+Fecha: 15 de octubre de 2026. Actualización del primer juego con lobby permanente, lava y elevación cooperativa. Color Rush conserva su entrega independiente.
+
+## Cambios
+
+- Piso, spawn neutral, tienda, carteles, escaleras y mirador guardados dentro del archivo antes de ejecutar scripts.
+- Inicio con una persona; los tres desafíos y sus recompensas se conservan.
+- Lava ascendente durante el juego; cada avance nuevo eleva plataformas y jugadores. Repetir pasos de memoria no permite ganar altura extra.
+- Preparación con el avatar quieto, retorno seguro al caer, espera en lobby y cámara opcional de espectador.
+- La lava queda fuera del mirador; detección de pies compatible con R6 y R15.
+- Fallar al obtener DataStore no impide comenzar rondas gratuitas; los paquetes de monedas permanecen bloqueados sin guardado fiable.
+- Bienvenida independiente del servidor y aviso de espera si la partida no consigue iniciar.
+- Modelo de actualización manual que conserva Config completo, los cuatro IDs, el almacén de progreso y una copia local de los objetos anteriores.
 
 ## Verificado en esta nube
 
-- Compilación Luau de servidor, cliente, módulos y pruebas.
-- 200 comprobaciones satisfactorias: reglas 20, misiones 29, registro de recibos 25, comercio 91 e integración del servidor 35.
-- La integración ejecuta el código del servidor con servicios simulados: completa los tres desafíos, comprueba entradas tardías, recompensas, VIP, misiones y recibos.
-- Un recibo repetido no duplica monedas. Un guardado que se confirma pero pierde su respuesta recupera la compra sin borrarla en el siguiente guardado.
-- Rojo genera el archivo `.rbxlx` con servidor, cliente y cinco módulos.
-- Los PNG/SVG son originales; el banner es una ilustración promocional, no una captura del juego.
+Compilación de **17 fuentes Luau** y **396 comprobaciones satisfactorias**:
 
-## Acciones en la cuenta del propietario
+| Comprobaciones | Cantidad |
+| --- | ---: |
+| Reglas | 20 |
+| Misiones | 29 |
+| Registro de recibos | 25 |
+| Comercio | 91 |
+| Servidor y escena, siete escenarios | 106 |
+| Interfaz y cámara | 53 |
+| Bienvenida e inicio tardío | 16 |
+| Instalador y restauración ante fallos | 56 |
 
-Publicar la experiencia, crear los tres productos y el pase VIP, configurar sus cuatro IDs y seleccionar los precios en Creator Dashboard. Después publicar esa configuración y ajustar la audiencia según los requisitos que muestre Roblox. Pasos en [PUBLICAR.md](PUBLICAR.md).
+Las simulaciones ejecutan los cuerpos reales de los scripts y módulos con servicios limitados. Cubren los tres desafíos, entrada tardía, caídas durante preparación/juego, respawn sin reingreso, elevación y reinicio de lava, guardado inaccesible, compatibilidad con Config antiguo y compras duplicadas. El instalador conserva la configuración, mantiene copias e importaciones inactivas y repone objetos originales ante un fallo simulado. Después de instalar, retira el paquete de Workspace para evitar geometría y puntos de aparición duplicados.
 
-Los IDs empiezan en cero para evitar activar productos inexistentes. No se puede acreditar una venta real ni crear los productos de tu cuenta sin acceso autorizado a esa cuenta. No se requieren contraseñas ni cookies en el chat.
+Rojo construye la experiencia en `.rbxl` y `.rbxlx`, el actualizador en `.rbxm` y `.rbxmx`, y una carpeta ZIP de Color Chaos. El XML del actualizador se inspecciona para confirmar que los tres scripts ejecutables están desactivados al importar. El ZIP se comprueba por integridad.
 
-## Límites de verificación
+## Aplicación a tu juego
 
-Este entorno no ejecuta Roblox Studio ni el cliente de Roblox. No se han verificado aquí física, renderizado, controles reales, redes, disponibilidad de DataStore, facturación real ni comportamiento de publicación. Las pruebas de servicios simulados no demuestran esas operaciones.
+Usa [ACTUALIZAR_LOBBY.md](ACTUALIZAR_LOBBY.md) sobre **la experiencia Color Chaos existente**. El Config de esa experiencia se conserva automáticamente. Los archivos completos llevan IDs de plantilla en cero; para un juego ya configurado, utiliza el modelo de actualización.
 
-El nombre es provisional y su disponibilidad no está comprobada. Código, escenarios y gráficos se crearon para esta entrega; las mecánicas generales pueden existir en otros juegos. No se garantizan exclusividad del concepto, cumplimiento de futuras políticas ni ingresos.
+Publica desde tu cuenta y entra en un servidor nuevo. Los servidores que ya estaban abiertos pueden seguir con el contenido anterior hasta que finalicen o los reinicies desde el Dashboard. El instalador no modifica DataStore ni publica por ti.
 
-Si aparece un fallo después de publicar, se actualiza la misma experiencia: no se rehace el proyecto. Conserva el nombre de DataStore y los registros de recibos según [OPERACION.md](OPERACION.md).
+## Límite de verificación
+
+La entrega anterior no incluía piso ni spawn en el archivo: dependía del arranque del servidor. Este riesgo está corregido. Sin el mensaje de Salida del juego publicado no se ha identificado la excepción exacta que causó el reporte del usuario.
+
+Este entorno no ejecuta Roblox Studio ni el cliente de Roblox. No se han verificado aquí física, renderizado, controles reales, publicación, servicios de DataStore ni facturación real. Los checks de simulación no acreditan esas operaciones.

@@ -14,14 +14,43 @@
       }
     },
     "Workspace": {
-      "$properties": { "Gravity": 140 }
+      "$properties": { "Gravity": 140, "FallenPartsDestroyHeight": -60 },
+      "ColorChaosWorld": { "$path": "scene/color-chaos-world.project.json" }
     },
     "Lighting": {
       "$properties": {
-        "ClockTime": 16,
-        "Brightness": 2,
-        "Ambient": [0.35, 0.4, 0.5],
-        "OutdoorAmbient": [0.55, 0.55, 0.65]
+        "ClockTime": 18.2,
+        "Brightness": 2.2,
+        "GlobalShadows": true,
+        "ExposureCompensation": 0.15,
+        "EnvironmentDiffuseScale": 0.5,
+        "EnvironmentSpecularScale": 0.6,
+        "Ambient": [0.24, 0.28, 0.39],
+        "OutdoorAmbient": [0.43, 0.46, 0.57]
+      },
+      "Atmosfera": {
+        "$className": "Atmosphere",
+        "$properties": {
+          "Density": 0.24,
+          "Offset": 0.2,
+          "Color": [0.7, 0.77, 0.9],
+          "Decay": [0.33, 0.37, 0.5],
+          "Glare": 0.1,
+          "Haze": 1.1
+        }
+      },
+      "Neon": {
+        "$className": "BloomEffect",
+        "$properties": { "Intensity": 0.22, "Size": 20, "Threshold": 1.2 }
+      },
+      "Color": {
+        "$className": "ColorCorrectionEffect",
+        "$properties": {
+          "Brightness": 0,
+          "Contrast": 0.06,
+          "Saturation": 0.04,
+          "TintColor": [0.96, 0.98, 1]
+        }
       }
     },
     "SoundService": { "$properties": { "RespectFilteringEnabled": true } }

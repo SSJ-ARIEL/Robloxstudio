@@ -4,6 +4,8 @@
 
 GitHub conserva el historial de código; Roblox conserva las versiones publicadas del lugar. El progreso de los jugadores vive en DataStore, separado de los scripts y del mapa.
 
+**Para instalar el lobby y la lava de la versión 1.1.0, sigue [ACTUALIZAR_LOBBY.md](ACTUALIZAR_LOBBY.md). El modelo de actualización conserva Config completo y deja los objetos anteriores en ServerStorage con sus scripts desactivados.**
+
 ## Actualizar usando Rojo
 
 1. Obtén los archivos de la nueva versión del mismo repositorio.
@@ -40,7 +42,8 @@ No compartas contraseñas, cookies, códigos de acceso ni datos privados de juga
 
 | Síntoma | Acción útil |
 | --- | --- |
-| El editor parece vacío | El escenario se genera al ejecutar el servidor. No añadas otro mapa por ese motivo. |
+| El editor parece vacío | La versión 1.1.0 incluye piso, spawn y lobby permanentes. Confirma que abriste la entrega correcta. |
+| El avatar cae en blanco al entrar | Instala el lobby permanente en la misma experiencia. El mínimo es una persona; no se necesitan cuatro. Si la partida sigue sin iniciar, revisa el error de Salida. |
 | Un artículo no está activo | Revisa que tenga el ID real correcto, pertenezca a esta experiencia y esté a la venta. Publica Config después de cambiarlo. |
 | El pase se compró pero el efecto no aparece | Confirma el PassId, la propiedad del pase y la conexión al servicio; conserva el mismo pase al corregirlo. |
 | El progreso solo dura la sesión | Revisa el estado del guardado. En Studio el guardado permanente está desactivado; una sesión sin acceso a DataStore no debe vender productos como si todo estuviera disponible. |
