@@ -9,8 +9,26 @@
       "$className": "Folder",
       "ColorChaos": {
         "$className": "Folder",
+        "Catalog": {
+          "$path": "../src/shared/Catalog.luau"
+        },
+        "Characters": {
+          "$path": "../src/shared/Characters.luau"
+        },
         "Config": {
           "$path": "../src/shared/Config.luau"
+        },
+        "Economy": {
+          "$path": "../src/shared/Economy.luau"
+        },
+        "GameRules": {
+          "$path": "../src/shared/GameRules.luau"
+        },
+        "GameSettings": {
+          "$path": "../src/shared/GameSettings.luau"
+        },
+        "Portrait": {
+          "$path": "../src/shared/Portrait.luau"
         },
         "ProfileLedger": {
           "$path": "../src/shared/ProfileLedger.luau"
@@ -30,11 +48,20 @@
         "Commerce": {
           "$path": "../src/server/Commerce.luau"
         },
+        "Cosmetics": {
+          "$path": "../src/server/Cosmetics.luau"
+        },
+        "Leaderboards": {
+          "$path": "../src/server/Leaderboards.luau"
+        },
         "Main": {
           "$path": "../src/server/Main.server.luau",
           "$properties": {
             "Disabled": true
           }
+        },
+        "Profiles": {
+          "$path": "../src/server/Profiles.luau"
         }
       }
     },

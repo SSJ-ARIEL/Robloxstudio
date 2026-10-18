@@ -15,7 +15,7 @@ gui.Parent = playerGui
 local panel = Instance.new("Frame")
 panel.AnchorPoint = Vector2.new(0.5, 0)
 panel.Position, panel.Size = UDim2.new(0.5, 0, 0, 12), UDim2.new(0.9, 0, 0, 128)
-panel.BackgroundColor3 = Color3.fromRGB(17, 24, 42)
+panel.BackgroundColor3 = Color3.fromRGB(19, 29, 56)
 panel.BackgroundTransparency = 0.05
 panel.Parent = gui
 local limit = Instance.new("UISizeConstraint")
@@ -25,15 +25,15 @@ local corners = Instance.new("UICorner")
 corners.CornerRadius = UDim.new(0, 14)
 corners.Parent = panel
 local border = Instance.new("UIStroke")
-border.Color = Color3.fromRGB(88, 169, 233)
+border.Color = Color3.fromRGB(102, 232, 204)
 border.Thickness = 2
 border.Parent = panel
 
 local title = Instance.new("TextLabel")
 title.Position, title.Size = UDim2.fromOffset(16, 12), UDim2.new(1, -32, 0, 32)
 title.BackgroundTransparency = 1
-title.Text = "COLOR CHAOS · BIENVENIDO"
-title.TextColor3 = Color3.fromRGB(245, 248, 255)
+title.Text = "COLOR CHAOS · CIUDAD PRISMA"
+title.TextColor3 = Color3.fromRGB(249, 246, 233)
 title.Font, title.TextScaled = Enum.Font.GothamBold, true
 title.Parent = panel
 local titleLimit = Instance.new("UITextSizeConstraint")
@@ -51,11 +51,17 @@ message.Parent = panel
 local started = os.clock()
 while gui.Parent do
 	local mainGui = playerGui:FindFirstChild("ColorChaosUI")
-	if mainGui and mainGui:GetAttribute("Ready") == true then
+	local status = workspace:GetAttribute("ColorChaosBootStatus")
+	-- A snapshot can arrive while server modules are still starting. Both ends
+	-- must be ready before dismissing the independent welcome.
+	if status == "READY" and mainGui and mainGui:GetAttribute("Ready") == true then
 		gui:Destroy()
 		break
 	end
-	if os.clock() - started >= 10 then
+	if status == "ERROR" then
+		message.Text = "La partida no pudo iniciarse. El lobby sigue disponible. Vuelve a entrar para buscar otro servidor."
+		border.Color = Color3.fromRGB(255, 145, 169)
+	elseif os.clock() - started >= 10 then
 		message.Text = "La partida tarda más de lo esperado. Puedes esperar en el lobby seguro."
 		border.Color = Color3.fromRGB(255, 188, 97)
 	end

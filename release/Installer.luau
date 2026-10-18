@@ -45,7 +45,7 @@ end
 local function validateWorld(world)
 	local spawn = world:FindFirstChild("LobbySpawn")
 	local floor = world:FindFirstChild("Plaza del reactor")
-	if not spawn or not spawn:IsA("SpawnLocation") or not spawn.Anchored or not spawn.Neutral then
+	if not spawn or not spawn:IsA("SpawnLocation") or not spawn.Anchored or not spawn.Neutral or not spawn.Enabled then
 		fail("El paquete no tiene el punto de aparición seguro del lobby.")
 	end
 	if not floor or not floor:IsA("BasePart") or not floor.Anchored or not floor.CanCollide then
@@ -58,6 +58,38 @@ local function validateWorld(world)
 		fail("El punto de aparición está fuera del piso del lobby.")
 	end
 	if #scriptsUnder(world) > 0 then fail("El escenario contiene scripts inesperados.") end
+	local spawns = 0
+	for _, value in ipairs(world:GetDescendants()) do
+		if value:IsA("SpawnLocation") then spawns += 1 end
+	end
+	if spawns ~= 1 then fail("El escenario debe contener un único punto de aparición seguro.") end
+	local stages = container(world, "Stages")
+	for index = 1, 8 do
+		local stage = container(stages, string.format("Stage%02d", index))
+		local reference = stage:FindFirstChild("ReferenceAnchor")
+		if not reference or not reference:IsA("BasePart") or not reference.Anchored then
+			fail("El recorrido no contiene la referencia del sector " .. tostring(index) .. ".")
+		end
+		local gates = container(stage, "Gates")
+		for lane = 1, 5 do
+			local gate = container(gates, "Gate" .. tostring(lane))
+			for _, name in ipairs({ "Barrier", "ChoicePad", "PortraitAnchor" }) do
+				local value = gate:FindFirstChild(name)
+				if not value or not value:IsA("BasePart") or not value.Anchored then
+					fail("El recorrido está incompleto: sector " .. tostring(index) .. ", puerta " .. tostring(lane) .. ".")
+				end
+			end
+		end
+	end
+end
+
+local function validateModules(parent, names)
+	for _, name in ipairs(names) do
+		local value = parent:FindFirstChild(name)
+		if not value or not value:IsA("ModuleScript") then
+			fail("El paquete no contiene el módulo " .. name .. ". Importa la entrega completa de Color Chaos 2.")
+		end
+	end
 end
 
 local function backupName(storage)
@@ -106,11 +138,18 @@ function Installer.apply()
 	if #scriptsUnder(replacements[1].Source) > 0 then fail("ReplicatedStorage contiene scripts inesperados.") end
 	local stagedConfig = replacements[1].Source:FindFirstChild("Config")
 	if not stagedConfig or not stagedConfig:IsA("ModuleScript") then fail("El paquete no contiene un Config válido.") end
+	validateModules(replacements[1].Source, {
+		"GameSettings", "Catalog", "Characters", "Portrait", "GameRules", "Economy", "ProfileLedger", "Progression", "Rules",
+	})
+	validateModules(replacements[2].Source, { "Profiles", "Leaderboards", "Cosmetics", "Commerce" })
 	if not replacements[2].Source:FindFirstChild("Main") or not replacements[2].Source.Main:IsA("Script") then
 		fail("El paquete no contiene el servidor principal.")
 	end
 	if not replacements[3].Source:FindFirstChild("Main") or not replacements[3].Source.Main:IsA("LocalScript") then
 		fail("El paquete no contiene la interfaz principal.")
+	end
+	if not replacements[3].Source:FindFirstChild("Bootstrap") or not replacements[3].Source.Bootstrap:IsA("LocalScript") then
+		fail("El paquete no contiene la bienvenida independiente del servidor.")
 	end
 	-- Prepare every replacement before touching existing objects. A failed Clone
 	-- or missing source cannot leave a partially changed experience.
@@ -133,7 +172,7 @@ function Installer.apply()
 
 	local recording
 	local began, token = pcall(function()
-		return history:TryBeginRecording("ColorChaosLobbyUpdate", "Actualizar lobby de Color Chaos")
+		return history:TryBeginRecording("ColorChaosPrismaUpdate", "Instalar Color Chaos 2: Ciudad Prisma")
 	end)
 	if began then recording = token end
 	if not recording then
@@ -190,8 +229,8 @@ function Installer.apply()
 	end
 	-- Retain the package in ServerStorage: destroying an ancestor of this Module
 	-- during require may disrupt the call, and a dormant source aids inspection.
-	print("Color Chaos actualizado. Config conservado y copia local en ServerStorage: " .. backup.Name .. ". Publica esta misma experiencia.")
-	return { Backup = backup.Name, Updated = true }
+	print("Color Chaos 2 actualizado. Config conservado y copia local en ServerStorage: " .. backup.Name .. ". Publica esta misma experiencia.")
+	return { Backup = backup.Name, Updated = true, Version = "2.0.0" }
 end
 
 return Installer

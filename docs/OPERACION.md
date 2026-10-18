@@ -1,76 +1,63 @@
-# Actualizar y mantener Color Chaos
+# Mantener Color Chaos: Ciudad Prisma
 
-**Si aparece un problema, se corrigen los archivos y se publica una nueva versión de la misma experiencia. No hay que rehacer el juego ni pedir a los jugadores que empiecen de cero.**
+Las correcciones se publican en **la misma experiencia y su mismo lugar inicial**. No hay que crear otro juego ni borrar el progreso. GitHub conserva el código, Roblox conserva las versiones del lugar y DataStore guarda los perfiles por separado.
 
-GitHub conserva el historial de código; Roblox conserva las versiones publicadas del lugar. El progreso de los jugadores vive en DataStore, separado de los scripts y del mapa.
+## Actualizar conservando tu configuración
 
-**Para instalar el lobby y la lava de la versión 1.1.0, sigue [ACTUALIZAR_LOBBY.md](ACTUALIZAR_LOBBY.md). El modelo de actualización conserva Config completo y deja los objetos anteriores en ServerStorage con sus scripts desactivados.**
+Usa [ACTUALIZAR_LOBBY.md](ACTUALIZAR_LOBBY.md): importa ColorChaosUpdate y ejecuta su instalador con Studio detenido. Conserva Config completo y respalda los objetos anteriores en ServerStorage. El instalador no publica ni escribe datos de jugadores.
 
-## Actualizar usando Rojo
+Si sincronizas directamente con Rojo, conserva primero los tres ProductId, el PassId y `Config.DataStoreName` en las fuentes. Los nuevos ajustes de rondas están en **GameSettings**; no necesitas borrar ni reemplazar Config para recibir la dinámica de Ciudad Prisma.
 
-1. Obtén los archivos de la nueva versión del mismo repositorio.
-2. Conserva tus tres ProductId y el PassId VIP en `src/shared/Config.luau`. No los sustituyas por los ceros de una plantilla.
-3. Conserva `Config.DataStoreName` y las claves de datos existentes. Cambiar el nombre crea otro almacén; no es un método de actualización.
-4. Abre en Studio **la experiencia existente**, con la cuenta o los permisos de su propietario.
-5. Inicia `rojo serve default.project.json` en la computadora y conecta el plugin, como explica [PUBLICAR.md](PUBLICAR.md).
-6. Acepta la sincronización del lugar y selecciona **File → Publish to Roblox**.
-7. Guarda los cambios del código en GitHub. Subir código a GitHub y publicar en Roblox son acciones distintas.
+Si abres un archivo completo `.rbxl`, su Config es el de plantilla. Antes de usar **Publicar en Roblox como** sobre tu experiencia existente, copia tu configuración real. Mantén el mismo almacén `ColorChaos_Player_v1`, salvo que tu experiencia ya usara otro nombre personalizado, que debes conservar literalmente.
 
-Una conexión de Rojo no modifica por sí sola la versión pública. El juego cambia para los nuevos servidores cuando publicas el lugar.
+## Servidores y respaldo
 
-## Actualizar sin instalar Rojo
+Los servidores abiertos pueden seguir utilizando la versión anterior después de publicar. Los nuevos usan el contenido actualizado. Reinicia los servidores de la experiencia desde el Dashboard si necesitas que todos reciban el cambio; el reinicio interrumpe sus partidas.
 
-1. Descarga la entrega actualizada y abre su `downloads/ColorChaos.rbxlx` en Studio.
-2. Coloca tus cuatro IDs reales en **ReplicatedStorage → ColorChaos → Config** antes de publicarlo. Confirma que el nombre de DataStore coincide con el de tu juego existente.
-3. Usa **File → Publish to Roblox As / Publicar en Roblox como**.
-4. Selecciona **la experiencia que ya existe** y **su mismo lugar inicial**; confirma la actualización. No elijas crear una experiencia nueva.
-5. Conserva una copia del archivo y de los IDs configurados.
+Antes de actualizar, guarda un `.rbxl` local. La carpeta ColorChaosBackup en ServerStorage contiene los objetos anteriores con sus scripts desactivados. Es una copia del lugar, no de DataStore. No actives simultáneamente el servidor antiguo y el nuevo. Para volver al contenido anterior utiliza el archivo local o una versión anterior del lugar; conserva siempre la configuración y los datos compatibles.
 
-Este flujo reemplaza el contenido del lugar con la nueva entrega. Si añadiste elementos propios dentro de Studio, comunica esos cambios para incorporarlos al proyecto antes de reemplazarlo.
+## Comportamiento esperado
 
-## Qué pasa con los servidores abiertos
-
-Al publicar, los servidores que ya están ejecutándose pueden continuar con la versión anterior. Los nuevos servidores usan la nueva versión. Si un arreglo urgente necesita llegar a todos, usa la opción de reiniciar los servidores de esa experiencia en el Dashboard.
-
-Un reinicio interrumpe las partidas en curso. Hazlo cuando sea necesario y avisa a tus jugadores. No borres DataStore ni crees otra experiencia para forzar una actualización.
-
-## Qué información sirve para corregir un problema
-
-Envía el texto del error de **Output / Salida** de Studio si existe, qué estaba haciendo la persona y si ocurrió en computadora o celular. Una captura o video ayuda cuando el problema es visual. Con esa información se reproduce el problema y se corrige la parte afectada.
-
-No compartas contraseñas, cookies, códigos de acceso ni datos privados de jugadores. Los enlaces de la experiencia y los IDs de productos sí sirven para revisar la configuración.
-
-| Síntoma | Acción útil |
+| Situación | Resultado |
 | --- | --- |
-| El editor parece vacío | La versión 1.1.0 incluye piso, spawn y lobby permanentes. Confirma que abriste la entrega correcta. |
-| El avatar cae en blanco al entrar | Instala el lobby permanente en la misma experiencia. El mínimo es una persona; no se necesitan cuatro. Si la partida sigue sin iniciar, revisa el error de Salida. |
-| Un artículo no está activo | Revisa que tenga el ID real correcto, pertenezca a esta experiencia y esté a la venta. Publica Config después de cambiarlo. |
-| El pase se compró pero el efecto no aparece | Confirma el PassId, la propiedad del pase y la conexión al servicio; conserva el mismo pase al corregirlo. |
-| El progreso solo dura la sesión | Revisa el estado del guardado. En Studio el guardado permanente está desactivado; una sesión sin acceso a DataStore no debe vender productos como si todo estuviera disponible. |
-| La tienda abre la ventana oficial pero no aparece la entrega | El paquete se confirma por recibo y guardado del servidor; puede quedar pendiente si Roblox no está disponible. No otorgues premios basándote en una captura de pago. |
-| Todos parecen haber perdido el progreso tras una actualización | Comprueba la experiencia, el propietario, `Config.DataStoreName` y las claves de guardado antes de alterar datos. |
-| Algunos jugadores siguen viendo la versión anterior | Sus servidores pueden seguir abiertos con la versión anterior. Decide si conviene reiniciarlos. |
+| Entra una persona sola | Espera la cuenta atrás y comienza práctica; obtiene progreso gratuito, pero no victorias. |
+| Entran dos o más antes de comenzar | Se inicia una partida competitiva, hasta veinte participantes. |
+| Un competidor elige mal | Regresa al lobby y pierde la racha actual. Puede observar o entrar como fantasma. |
+| Alguien entra con la partida empezada | Queda en el lobby y puede activar el modo fantasma para recorrerla. |
+| Un fantasma acierta | Puede continuar explorando, pero no suma aciertos, monedas por respuesta, rachas, regalos de racha ni victorias. |
+| Un jugador encadena cinco aciertos | Gana un regalo gratuito; también ocurre al llegar a diez, quince y sucesivos múltiplos. |
+| Termina una partida ganando | Conserva su racha. Salir de una partida activa la reinicia. |
+| Espera en lobby o juega como fantasma | Sigue acumulando tiempo para los regalos diarios. |
+| DataStore no está disponible | El mundo permanece visible; el juego no confirma entregas pagadas sin guardado fiable. |
+| La clasificación global está vacía | Aún no hay registros confirmados o el servicio no está disponible. No implica que el lobby deba fallar. |
 
-## Reglas para proteger el progreso y las compras
+Los regalos por tiempo se reclaman una vez al día por escalón y usan tiempo conectado acumulado, no tiempo con el juego cerrado. El día cambia a las **00:00 UTC, 19:00 de Ecuador continental**. La tabla global se actualiza periódicamente, después de guardar los perfiles; no es un contador instantáneo.
 
-- Conserva el nombre de DataStore y la identidad de la experiencia.
-- Conserva los registros de recibos procesados para que una compra no se entregue dos veces.
-- No ejecutes herramientas que borren perfiles o recibos como parte de una publicación.
-- Si una futura actualización cambia el formato de guardado, prepara una migración compatible y una copia de respaldo antes de modificar los datos.
-- Usa una experiencia de desarrollo separada para cambios experimentales que escriban datos. Esta separación no obliga a recrear la experiencia de producción.
+## Recoger un error útil
 
-## Validación técnica de una entrega
+Si algo falla, conserva el lugar y abre **Vista → Salida / Output** de Studio. Copia el primer error rojo completo, incluido el nombre del script y la línea. Indica qué hiciste, el dispositivo y si ocurrió en Studio o en la aplicación Roblox. Para problemas visuales sirve una captura con el personaje, la interfaz y el Explorador visibles.
 
-En el entorno Linux de desarrollo, desde la carpeta del proyecto:
+| Síntoma | Comprobación |
+| --- | --- |
+| El editor está vacío | Confirma que abriste ColorChaos2.rbxl o instalaste el actualizador completo. Workspace debe contener ColorChaosWorld. |
+| La ciudad está visible, pero no comienza la ronda | Revisa el primer error en Salida. Un Config editado con una coma ausente también puede impedir el arranque. |
+| Aparece el mundo antiguo | Comprueba el archivo y abre un servidor nuevo tras publicar. |
+| No aparece la compra | Comprueba ID real, tipo ProductId/PassId, pertenencia a la experiencia, venta activa y estado del guardado. |
+| El progreso desaparece al detener Studio | Studio usa progreso temporal; no escribe perfiles de producción. |
+| La tabla global no muestra la prueba de Studio | La clasificación se alimenta de perfiles persistidos en servidores publicados. |
+| “Error al guardar” al publicar | Conserva el archivo y recoge el error de Salida. No presupongas que es un carácter del nombre o un límite de un juego por cuenta. |
+
+## Proteger compras y perfiles
+
+Conserva el nombre del almacén y las claves `Player_<UserId>`. No borres recibos ni cambies las cantidades de productos antiguos con compras pendientes. Los recibos numéricos anteriores siguen siendo compatibles. Monedas y recibo se guardan juntos, y un recibo duplicado no debe volver a premiarse.
+
+Los nuevos campos de diamantes, regalos, cosméticos y racha se inicializan al cargar perfiles existentes. Los regalos aleatorios solo se obtienen jugando: no se compran con Robux, monedas ni diamantes. Los precios de cosméticos indican exactamente el artículo que recibe el jugador.
+
+## Verificación de desarrollo
 
 ```sh
 COLOR_CHAOS_TOOLS_DIR=/workspace/.tools/color-chaos bash tools/validate.sh
+COLOR_CHAOS_TOOLS_DIR=/workspace/.tools/color-chaos python3 tools/package-release.py
 ```
 
-La herramienta verifica compilación, reglas y simulaciones del servidor, y genera el archivo para Studio. Los resultados exactos de cada entrega se deben registrar junto a esa versión.
-
-Estas verificaciones no ejecutan física, controles, renderizado ni servicios reales de Roblox. Una compilación y las pruebas simuladas no demuestran que se haya realizado una compra real en tu cuenta. Conserva esta distinción al presentar una versión como lista para lanzamiento.
-
-En Windows no necesitas ejecutar ese comando Bash para publicar. La activación de productos, la publicación y los requisitos de cuenta se completan en Roblox con los pasos de [PUBLICAR.md](PUBLICAR.md).
-
-Fuentes: [actualizar experiencias](https://create.roblox.com/docs/projects/update-games), [DataStore](https://create.roblox.com/docs/cloud-services/data-stores) y [recibos de compras](https://create.roblox.com/docs/production/monetization/developer-products).
+Ejecuta estos comandos desde la raíz del repositorio en el entorno Linux. Windows no necesita estos pasos para abrir la entrega. Los resultados de simulación y sus límites están en [ESTADO.md](ESTADO.md); no equivalen a ejecutar física, renderizado o facturación real de Roblox.

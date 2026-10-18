@@ -1,6 +1,6 @@
 -- The actual client is inserted below. Mocks implement Roblox APIs only;
 -- they do not reimplement client behavior or execute the renderer/physics.
-local objects, sent, childWaits = {}, {}, {}
+local objects, sent, childWaits, mounts, priceCalls = {}, {}, {}, {}, {}
 local function signal()
 	local value = { listeners = {} }
 	function value:Connect(callback)
@@ -20,12 +20,15 @@ local Node = {}
 Node.__index = function(self, key)
 	if key == "Parent" then return rawget(self, "_parent") end
 	if Node[key] then return Node[key] end
-	if table.find({ "Activated", "Died", "CharacterAdded" }, key) then
+	if table.find({ "Activated", "Died", "CharacterAdded", "MouseEnter", "MouseLeave" }, key) then
 		local value = signal()
 		rawset(self, key, value)
 		return value
 	end
-	return rawget(self, key)
+	local property = rawget(self, key)
+	if property ~= nil then return property end
+	for _, child in ipairs(rawget(self, "children") or {}) do if child.Name == key then return child end end
+	return nil
 end
 Node.__newindex = function(self, key, value)
 	if key == "Parent" then
@@ -41,9 +44,18 @@ Node.__newindex = function(self, key, value)
 end
 function Node:IsA(className)
 	return className == self.ClassName or className == "GuiObject"
-		and table.find({ "Frame", "TextLabel", "TextButton", "ScrollingFrame" }, self.ClassName) ~= nil
+		and table.find({ "Frame", "TextLabel", "TextButton", "ImageLabel", "ImageButton", "ViewportFrame", "ScrollingFrame" }, self.ClassName) ~= nil
 end
 function Node:GetChildren() return table.clone(self.children) end
+function Node:GetDescendants()
+	local result = {}
+	for _, child in ipairs(self.children) do
+		table.insert(result, child)
+		for _, descendant in ipairs(child:GetDescendants()) do table.insert(result, descendant) end
+	end
+	return result
+end
+function Node:ClearAllChildren() for _, child in ipairs(self:GetChildren()) do child:Destroy() end end
 function Node:Destroy()
 	for _, child in ipairs(self:GetChildren()) do child:Destroy() end
 	self.Parent, self.destroyed = nil, true
@@ -71,10 +83,15 @@ function Node:GetPropertyChangedSignal(name)
 	return self.propertySignals[name]
 end
 function Node:GetAttribute(name) return self.attributes[name] end
-function Node:SetAttribute(name, value) self.attributes[name] = value end
+function Node:SetAttribute(name, value)
+	self.attributes[name] = value
+	if self.propertySignals["Attribute:" .. name] then self.propertySignals["Attribute:" .. name]:fire() end
+end
+function Node:GetAttributeChangedSignal(name) return self:GetPropertyChangedSignal("Attribute:" .. name) end
 local function node(className, name, parent)
 	local value = setmetatable({ ClassName = className, Name = name or className, children = {},
-		propertySignals = {}, attributes = {}, ZIndex = 1, Active = className == "TextButton" }, Node)
+		propertySignals = {}, attributes = {}, ZIndex = 1, Visible = true, Active = className == "TextButton",
+		AbsoluteSize = { X = 900, Y = 700 } }, Node)
 	value.Parent = parent
 	table.insert(objects, value)
 	return value
@@ -82,6 +99,7 @@ end
 local Instance = { new = function(className) return node(className) end }
 local function vector(x, y) return { X = x, Y = y } end
 local Vector2 = { new = vector, zero = vector(0, 0) }
+local Vector3 = { new = function(x, y, z) return { X = x, Y = y, Z = z } end }
 local UDim = { new = function(scale, offset) return { Scale = scale, Offset = offset } end }
 local UDim2 = {}
 function UDim2.new(xs, xo, ys, yo)
@@ -103,10 +121,20 @@ local Enum = setmetatable({}, { __index = function(self, group)
 	return values
 end })
 local TweenInfo = { new = function(seconds) return { Seconds = seconds } end }
-local delayed, mockClock = {}, 10
+local ColorSequence = { new = function(...) return { ... } end }
+local NumberSequence = { new = function(...) return { ... } end }
+local ColorSequenceKeypoint = { new = function(...) return { ... } end }
+local NumberSequenceKeypoint = { new = function(...) return { ... } end }
+local delayed, scheduled, mockClock = {}, {}, 10
 local os = { clock = function() return mockClock end }
+local function resumeTask(thread, ...)
+	local ok, pause = coroutine.resume(thread, ...)
+	assert(ok, pause)
+	if coroutine.status(thread) == "suspended" then table.insert(scheduled, { Due = mockClock + (pause or 0), Thread = thread }) end
+end
 local task = {
-	spawn = function(callback) callback() end,
+	spawn = function(callback, ...) local thread = coroutine.create(callback); resumeTask(thread, ...); return thread end,
+	defer = function(callback) table.insert(delayed, { Due = mockClock, Callback = callback }) end,
 	delay = function(seconds, callback) table.insert(delayed, { Due = mockClock + seconds, Callback = callback }) end,
 	wait = function(seconds) return coroutine.yield(seconds or 0) end,
 }
@@ -114,6 +142,9 @@ local function advanceTime(seconds)
 	mockClock += seconds
 	for index = #delayed, 1, -1 do
 		if delayed[index].Due <= mockClock then table.remove(delayed, index).Callback() end
+	end
+	for index = #scheduled, 1, -1 do
+		if scheduled[index].Due <= mockClock then resumeTask(table.remove(scheduled, index).Thread) end
 	end
 end
 local workspace = node("Workspace")
@@ -134,20 +165,43 @@ local ownHumanoid = makeCharacter(player)
 workspace.CurrentCamera.CameraType, workspace.CurrentCamera.CameraSubject = "CameraType.Custom", ownHumanoid
 local players = { LocalPlayer = player, PlayerRemoving = signal() }
 function players:GetPlayerByUserId(userId) return roster[userId] end
+function players:GetPlayers() local list = {}; for _, member in pairs(roster) do table.insert(list, member) end; return list end
 local storage = node("ReplicatedStorage")
 local shared = node("Folder", "ColorChaos", storage)
-node("ModuleScript", "Config", shared)
+for _, name in ipairs({ "Config", "Catalog", "GameSettings", "Characters", "Portrait", "Progression", "ProfileLedger", "Economy", "GameRules" }) do
+	node("ModuleScript", name, shared)
+end
+local world = node("Folder", "ColorChaosWorld", workspace)
+local stages = node("Folder", "Stages", world)
+for stageIndex = 1, 8 do
+	local stage = node("Model", string.format("Stage%02d", stageIndex), stages)
+	local startZ = -40 - (stageIndex - 1) * 112
+	local anchor = node("Part", "ReferenceAnchor", stage)
+	anchor.Position = Vector3.new(0, 31, startZ - 25)
+	local gates = node("Folder", "Gates", stage)
+	for index = 1, 5 do
+		local gate = node("Model", "Gate" .. index, gates)
+		local portrait = node("Part", "PortraitAnchor", gate)
+		portrait.Position = Vector3.new(-60 + index * 20, 24, startZ - 48)
+	end
+end
 local remotes = node("Folder", "Remotes", shared)
 local state = node("RemoteEvent", "State", remotes)
 state.OnClientEvent = signal()
 local action = node("RemoteEvent", "Action", remotes)
 function action:FireServer(kind, value) table.insert(sent, { kind, value }) end
 local input = { TouchEnabled = false, InputBegan = signal() }
+local priceFailures = {}
+local function getProductInfo(_, id, kind)
+	table.insert(priceCalls, { Id = id, Kind = kind })
+	if priceFailures[id] then error("Native price unavailable") end
+	return { PriceInRobux = 7, IsForSale = true }
+end
 local services = {
 	Players = players, ReplicatedStorage = storage, UserInputService = input,
-	MarketplaceService = { GetProductInfoAsync = function() return { PriceInRobux = 7, IsForSale = true } end },
+	MarketplaceService = { GetProductInfoAsync = getProductInfo, GetProductInfo = getProductInfo },
 	TweenService = { Create = function(_, target, _, properties)
-		return { Play = function() for key, value in pairs(properties) do target[key] = value end end }
+		return { Play = function() for key, value in pairs(properties) do target[key] = value end end, Cancel = function() end }
 	end },
 }
 local game = { GetService = function(_, name) return assert(services[name], name) end }
@@ -158,169 +212,151 @@ local function clientMain()
 end
 clientMain()
 
-local checks = 0
-local function check(value, message) checks += 1; assert(value, message) end
-local function buttonWith(text)
-	for _, object in ipairs(objects) do
-		if not object.destroyed and object.ClassName == "TextButton" and object.Text == text then return object end
-	end
-	error("Button not found: " .. text)
-end
-local function containsText(fragment)
-	for _, object in ipairs(objects) do
-		if not object.destroyed and type(object.Text) == "string" and string.find(object.Text, fragment, 1, true) then return true end
-	end
-	return false
-end
-local base = {
-	Phase = "LOBBY", Message = "Espera", Seconds = 16, MinimumPlayers = 1, ReadyPlayers = 1,
-	Profile = { Coins = 100, Wins = 2, Selected = 1, Owned = { ["1"] = true }, VIP = false },
-	Progression = { Level = 3, LevelProgress = 20, NextLevelXP = 100, Missions = {} },
-	Persistence = "Guardado activo", Commerce = {},
-}
-local function snapshot(changes)
-	local payload = table.clone(base)
-	for key, value in pairs(changes or {}) do payload[key] = value end
-	state.OnClientEvent:fire(payload)
-end
-local ui = playerGui:FindFirstChild("ColorChaosUI")
-check(ui and ui:GetAttribute("Ready") == false, "the main UI remains unready until the server responds")
-check(#sent == 1 and sent[1][1] == "Sync", "requests the first snapshot after subscribing")
-for _, request in ipairs(childWaits) do
-	if request.Name ~= "PlayerGui" then check(request.Timeout == 15, "shared dependencies have finite waits") end
-end
-state.OnClientEvent:fire("bad payload")
-check(ui:GetAttribute("Ready") == false, "an invalid snapshot cannot dismiss the independent welcome")
-snapshot()
-check(ui:GetAttribute("Ready") == true, "the first valid snapshot marks the main UI ready")
-check(containsText("1 jugador listo"), "the lobby displays a singular ready-player count")
-check(containsText("Juega desde 1 jugador"), "the lobby discloses that one player is sufficient")
-check(containsText("La partida empieza automáticamente"), "the lobby explains automatic starts")
-local spectatorPanel = ui:FindFirstChild("SpectatorControls")
-check(spectatorPanel and not spectatorPanel.Visible, "the lobby does not expose spectator controls")
-snapshot({ ReadyPlayers = 4 })
-check(containsText("4 jugadores listos"), "plural lobby counts are readable")
 
-local function rival(userId, name, health)
-	local owner = node("Player", name)
-	owner.UserId, owner.DisplayName = userId, name
-	roster[userId] = owner
-	return owner, makeCharacter(owner, health)
+local checks=0
+local function check(ok,message) checks+=1;assert(ok,message) end
+local ui=playerGui:FindFirstChild("ColorChaosUI")
+local function named(name,parent) return assert((parent or ui):FindFirstChild(name,true),"Missing: "..name) end
+local function click(name,parent) named(name,parent).Activated:fire() end
+local function contains(text)
+ for _,o in ipairs(objects)do if not o.destroyed and type(o.Text)=="string"and string.find(o.Text,text,1,true)then return true end end;return false
 end
-local bluePlayer, blueHumanoid = rival(20, "Azul")
-local greenPlayer, greenHumanoid = rival(30, "Verde")
-local _, deadHumanoid = rival(40, "Fuera", 0)
-snapshot({ Phase = "JUEGO", Participating = false, Alive = false, SpectatorIds = { 10, 20, 20, 30, 40, 999, "invalid" },
-	AlivePlayers = 2, ParticipantCount = 3, Progress = 2, Total = 8, LavaHeight = 13.25, PlatformLift = 3.333 })
-check(spectatorPanel.Visible, "late arrivals can choose to observe active survivors")
-check(workspace.CurrentCamera.CameraSubject == ownHumanoid, "spectating remains voluntary")
-check(not buttonWith("SIGUIENTE").Visible, "next-player control is hidden until observing")
-check(containsText("2 / 3 sobrevivientes"), "active status reports survivors separately from participants")
-check(containsText("LAVA ↑ 13.2 · ARENA +3.3"), "the HUD shows server lava height and platform lift")
-local remoteCount = #sent
-buttonWith("OBSERVAR").Activated:fire()
-check(workspace.CurrentCamera.CameraSubject == blueHumanoid, "observe selects the first living external survivor")
-check(buttonWith("SIGUIENTE").Visible, "multiple distinct survivors expose the next-player control")
-check(containsText("OBSERVANDO A AZUL"), "the observed survivor is clearly named")
-buttonWith("SIGUIENTE").Activated:fire()
-check(workspace.CurrentCamera.CameraSubject == greenHumanoid, "next switches to the second survivor")
-check(containsText("OBSERVANDO A VERDE"), "the label follows the camera target")
-buttonWith("SIGUIENTE").Activated:fire()
-check(workspace.CurrentCamera.CameraSubject == blueHumanoid, "next wraps through the deduplicated survivor list")
-blueHumanoid.Health = 0
-blueHumanoid.Died:fire()
-check(workspace.CurrentCamera.CameraSubject == greenHumanoid, "a dead observed avatar immediately yields to a survivor")
-check(not buttonWith("SIGUIENTE").Visible, "dead survivors are removed from the camera cycle")
-check(workspace.CurrentCamera.CameraSubject ~= deadHumanoid, "preexisting dead avatars are never selected")
-buttonWith("VOLVER AL LOBBY").Activated:fire()
-check(workspace.CurrentCamera.CameraSubject == ownHumanoid, "return-to-lobby restores the local avatar camera")
-check(buttonWith("OBSERVAR") ~= nil, "return-to-lobby leaves observation available without forcing it")
-buttonWith("OBSERVAR").Activated:fire()
-snapshot({ Phase = "RESULTADOS", Participating = false, Alive = false, SpectatorIds = { 30 } })
-check(workspace.CurrentCamera.CameraSubject == ownHumanoid and not spectatorPanel.Visible,
-	"results automatically restore the local camera and hide observation")
-snapshot({ Phase = "JUEGO", Participating = true, Alive = true, SpectatorIds = { 30 } })
-check(not spectatorPanel.Visible and workspace.CurrentCamera.CameraSubject == ownHumanoid,
-	"a live participant cannot spectate while playing")
-check(containsText("EN EL EQUIPO"), "a live participant sees their active-team status")
-snapshot({ Phase = "PREPARACIÓN", Participating = false, Alive = false, SpectatorIds = { 30 } })
-check(spectatorPanel.Visible, "late arrivals can observe round preparation")
-buttonWith("OBSERVAR").Activated:fire()
-players.PlayerRemoving:fire(greenPlayer)
-roster[30] = nil
-check(workspace.CurrentCamera.CameraSubject == ownHumanoid and not spectatorPanel.Visible,
-	"the last observed player's departure restores the lobby camera")
-greenHumanoid.Health = 100
-roster[30] = greenPlayer
-snapshot({ Phase = "JUEGO", Participating = false, Alive = false, SpectatorIds = { 30 } })
-buttonWith("OBSERVAR").Activated:fire()
-local replacementCamera = node("Camera")
-replacementCamera.ViewportSize = vector(1200, 700)
-replacementCamera.CameraSubject = ownHumanoid
-workspace.CurrentCamera = replacementCamera
-workspace:GetPropertyChangedSignal("CurrentCamera"):fire()
-check(replacementCamera.CameraSubject == greenHumanoid, "camera replacement preserves voluntary observation")
-greenHumanoid.Health = 0
-greenHumanoid.Died:fire()
-check(replacementCamera.CameraSubject == ownHumanoid and not spectatorPanel.Visible,
-	"when all survivors die the local camera is restored")
-local previousOwn = ownHumanoid
-ownHumanoid = makeCharacter(player)
-player.CharacterAdded:fire(player.Character)
-check(workspace.CurrentCamera.CameraSubject == ownHumanoid and ownHumanoid ~= previousOwn,
-	"respawn restores the camera to the new local humanoid")
-check(#sent == remoteCount, "spectator camera controls do not submit game or purchase actions")
-
-snapshot()
-local defaultCatalog = {}
-for _, product in ipairs(Config.Commerce.Products) do
-	table.insert(defaultCatalog, { Key = product.Key, Kind = "Product", Id = 0, Available = false,
-		Name = product.Name, Description = product.Description })
+local function row(title)
+ for _,o in ipairs(objects)do if not o.destroyed and o.Name=="Row" and o:FindFirstChild("Title") and o.Title.Text==title then return o end end
+ error("Missing row "..title)
 end
-local vip = Config.Commerce.VIP
-table.insert(defaultCatalog, { Key = vip.Key, Kind = "Pass", Id = 0, Available = false, Name = vip.Name, Description = vip.Description })
-snapshot({ Commerce = { Catalog = defaultCatalog } })
-buttonWith("ROBUX").Activated:fire()
-local disabled = 0
-for _, object in ipairs(objects) do
-	if not object.destroyed and object.ClassName == "TextButton" and object.Text == "PRÓXIMAMENTE" and not object.Active then disabled += 1 end
+local function act(title) row(title).Action.Activated:fire() end
+local function gift(key)
+ for _,o in ipairs(objects)do if not o.destroyed and o:GetAttribute("TimeGiftId")==key then return o end end
+ error("Missing gift "..key)
 end
-check(disabled == 4, "the actual default catalog disables all four unset product IDs")
-local configured = {}
-for index, offer in ipairs(defaultCatalog) do configured[index] = table.clone(offer) end
-configured[1].Id, configured[1].Available = 101, true
-snapshot({ Commerce = configured })
-check(buttonWith("COMPRAR · R$ 7").Active, "configured offers show the native current price")
-buttonWith("COMPRAR · R$ 7").Activated:fire()
-check(sent[#sent][1] == "Purchase" and sent[#sent][2].Key == "coins100" and sent[#sent][2].Kind == "Product",
-	"purchase submits only the catalog kind/key to the authoritative server")
-buttonWith("AURAS").Activated:fire()
-buttonWith("MENTA · 80 monedas").Activated:fire()
-check(sent[#sent][1] == "Palette" and sent[#sent][2] == 2, "a cosmetic selection submits its catalog index")
-buttonWith("PRISMA VIP · VER PASE VIP").Activated:fire()
-check(buttonWith("COMPRAR · R$ 7") ~= nil, "the VIP aura points to optional offers rather than granting ownership")
-buttonWith("AYUDA").Activated:fire()
-check(containsText("Puedes jugar desde una sola persona"), "help agrees with the server's single-player minimum")
-check(containsText("LAVA Y PLATAFORMAS"), "help describes the lava/elevation mechanic")
-check(containsText("VOLVER AL LOBBY"), "help explains how to exit voluntary observation")
-
--- A compact touch display must move controls out of the bottom thumb areas.
-input.TouchEnabled = true
-workspace.CurrentCamera.ViewportSize = vector(850, 390)
-workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):fire()
-local scales = 0
-for _, object in ipairs(objects) do
-	if not object.destroyed and object.ClassName == "UIScale" then
-		check(type(object.Scale) == "number" and object.Scale > 0 and object.Scale < 1,
-			"a short touch display scales HUD and spectator controls down")
-		scales += 1
-	end
+local NOW=2000000000
+local data=Economy.clean({Coins=500,Gems=75,Wins=2,CurrentStreak=5,BestStreak=7,FreeGifts=1},NOW,Config)
+data.Timers.Seconds=120;data.CosmeticsOwned.suit_mint=true
+local p=Economy.view(data,NOW);p.VIP=false
+local offers={}
+for _,v in ipairs(Config.Commerce.Products)do table.insert(offers,{Key=v.Key,Kind="Product",Id=0,Available=false,Name=v.Name,Description=v.Description})end
+table.insert(offers,{Key=Config.Commerce.VIP.Key,Kind="Pass",Id=0,Available=false,Name=Config.Commerce.VIP.Name})
+local base={Phase="LOBBY",Mode="LOBBY",Stage=0,StageCount=8,Seconds=18,ReadyCount=1,Profile=p,Commerce=offers}
+local function snapshot(changes)local value=table.clone(base);for k,v in pairs(changes or{})do value[k]=v end;state.OnClientEvent:fire(value)end
+check(ui and not ui:GetAttribute("Ready"),"main remains unready before server state")
+check(#sent==1 and sent[1][1]=="Sync","initial sync requested after subscription")
+for _,v in ipairs(childWaits)do if v.Name~="PlayerGui"then check(v.Timeout~=nil and v.Timeout<=20,"dependencies have finite waits")end end
+state.OnClientEvent:fire("invalid");state.OnClientEvent:fire({Toast="Espera"})
+state.OnClientEvent:fire({Phase="READY",Profile={}});state.OnClientEvent:fire({Phase="LOBBY"})
+check(not ui:GetAttribute("Ready"),"invalid and toast-only messages cannot dismiss welcome")
+advanceTime(2);check(#sent==2 and sent[2][1]=="Sync","late server triggers nonblocking sync retry")
+snapshot();check(ui:GetAttribute("Ready") and contains("500 monedas · 75 diamantes"),"valid snapshot presents both balances")
+check(not named("SpectatorControls").Visible,"lobby hides match observation")
+snapshot({OpenWindow="Shop"});local n=#sent
+act("Astronauta Nova");check(sent[#sent][1]=="BuyCosmetic" and sent[#sent][2]=="suit_nova","direct purchase sends only cosmetic ID")
+act("Astronauta Nova");act("Explorador Menta")
+check(#sent==n+1 and p.Coins==500 and not p.CosmeticsOwned.suit_nova,"double click and owned item cannot mint or spend locally")
+click("Robux");n=#sent
+for _,v in ipairs(offers)do check(row(v.Name).Action.Text=="No disponible","zero ID offer unavailable");act(v.Name)end
+check(#sent==n and #priceCalls==0,"unconfigured products never prompt or fetch prices")
+local configured={};for i,v in ipairs(offers)do configured[i]=table.clone(v)end
+configured[1].Id,configured[1].Available=101,true
+snapshot({Commerce=configured})
+check(row(configured[1].Name).Action.Text=="R$ 7" and #priceCalls==1,"shop uses native price quote")
+act(configured[1].Name);n=#sent;act(configured[1].Name)
+check(#sent==n and sent[n][1]=="Purchase" and sent[n][2].Key=="coins100" and sent[n][2].Kind=="Product" and sent[n][2].Amount==nil,"purchase uses kind/key with click rate limit and no award")
+snapshot({Commerce=configured,Seconds=17});check(#priceCalls==1,"clock snapshots reuse price quotes")
+configured[2].Id,configured[2].Available=102,true;priceFailures[102]=true
+snapshot({Commerce=configured,OpenWindow="Shop"});click("Robux")
+check(row(configured[2].Name).Action.Text=="Ver precio","native pricing failure never invents a Robux price")
+snapshot({OpenWindow="Wardrobe"});act("Explorador Menta")
+check(sent[#sent][1]=="EquipCosmetic" and sent[#sent][2].Id=="suit_mint","owned suit requests server equip")
+n=#sent;act("Caballero Meteoro");act("Centinela Prisma VIP")
+check(#sent==n,"unowned and unverified VIP equipment cannot submit")
+click("Emote");act("Saludo · puesto");check(sent[#sent][1]=="Emote"and sent[#sent][2]=="emote_wave","free emote submits actual owned ID")
+click("Reaction");act("Estrella · puesto");check(sent[#sent][1]=="Reaction"and sent[#sent][2]=="reaction_star","free reaction submits actual owned ID")
+click("Aura");act("MENTA");check(sent[#sent][1]=="Palette"and sent[#sent][2]==2,"legacy aura uses original numeric index")
+snapshot({OpenWindow="Gifts"})
+check(gift("time2").Text=="Reclamar" and gift("time5").Text=="3:00","gift eligibility and countdown follow server time")
+n=#sent;gift("time5").Activated:fire();check(#sent==n,"locked time gift cannot claim")
+gift("time2").Activated:fire();n=#sent;gift("time2").Activated:fire()
+check(#sent==n and sent[n][1]=="ClaimTimeGift" and sent[n][2]=="time2" and p.Gems==75,"time claim sends milestone once without local diamonds")
+data.Timers.Claimed.time2=true
+snapshot({Profile=Economy.view(data,NOW)});gift("time2").Activated:fire()
+check(gift("time2").Text=="Reclamado" and #sent==n,"confirmed time reward becomes inert")
+click("Racha");act("Racha actual: 5")
+check(sent[#sent][1]=="OpenGift"and sent[#sent][2]==nil,"earned gift sends no outcome or price")
+data.FreeGifts=0;snapshot({Profile=Economy.view(data,NOW)});n=#sent;act("Racha actual: 5")
+check(#sent==n and contains("Sin regalos"),"no gift balance cannot open a reward")
+click("Premios")
+check(contains("45%")and contains("30%")and contains("15%")and contains("6%")and contains("4%"),"all reward category probabilities visible")
+check(contains("6 opciones · 2.50% cada una")and contains("15 diamantes"),"item-level odds and duplicate compensation disclosed")
+snapshot({GiftResult={Kind="Gems",Amount=15}})
+check(named("GiftReveal").Visible and named("Name",named("GiftReveal")).Text=="15 diamantes","server reward opens the actual reveal panel")
+snapshot({GiftResult={Kind="Suit",Name="Explorador Menta"}})
+check(named("Name",named("GiftReveal")).Text=="Explorador Menta","new confirmed gift replaces earlier reveal safely")
+click("CloseGift");check(not named("GiftReveal").Visible,"gift panel closes without submitting a purchase")
+click("Close")
+local ch=Characters.get(1)
+local colors={{255,60,100},{80,180,255},ch.TargetRGB,{255,210,70},{90,225,130}}
+local function challenge(changes)
+ local value={Phase="CHOOSE",Mode="ALIVE",Stage=1,CharacterId=1,ReferenceRGB=colors[1],Choices=colors,AliveCount=3,Seconds=12}
+ for k,v in pairs(changes or{})do value[k]=v end;snapshot(value)
 end
-check(scales == 3, "all three control groups adapt to the compact touch viewport")
-check(spectatorPanel.AnchorPoint.Y == 0 and spectatorPanel.Position.Y.Scale == 0 and spectatorPanel.Position.Y.Offset > 0,
-	"touch observation controls anchor above the bottom movement buttons")
-input.TouchEnabled = false
-workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):fire()
-check(spectatorPanel.AnchorPoint.Y == 1 and spectatorPanel.Position.Y.Scale == 1,
-	"desktop observation controls return to their bottom HUD position")
-print("Color Chaos UI smoke checks: " .. checks .. " passed (API mocks; no Roblox engine).")
+challenge({Phase="PREVIEW",ReferenceRGB=ch.TargetRGB,Choices={},Seconds=2})
+check(named("ReferenceCard").Visible and named("ReferenceCard").AnchorPoint.X==0.5,"original reference is central during two-second preview")
+check(ui:FindFirstChild("WorldReference")and not ui:FindFirstChild("WorldChoice1"),"preview reveals no alternatives")
+check(table.concat(mounts[#mounts].RGB,",")==table.concat(ch.TargetRGB,","),"preview uses original catalog color")
+challenge()
+check(ui:FindFirstChild("WorldChoice1")and ui:FindFirstChild("WorldChoice5"),"choosing mounts all five gate portraits")
+check(ui.WorldChoice5.Size.X.Scale==14 and ui.WorldChoice5.Size.X.Offset==0,"portraits use world-size bounds fitting lane spacing")
+local ref
+for _,m in ipairs(mounts)do if m.Viewport.Parent and m.Viewport.Parent.Parent and m.Viewport.Parent.Parent.Name=="WorldReference"then ref=m end end
+check(ref and table.concat(ref.RGB,",")==table.concat(colors[1],","),"central choosing portrait has server-altered color")
+local before=#mounts;n=#sent;challenge({Seconds=11})
+check(#mounts==before and #sent==n,"timer ticks rebuild no portraits and request no answer")
+challenge({MyChoice=3});check(contains("Elegiste el camino 3"),"physical choice confirmation uses server state")
+challenge({Phase="REVEAL",CorrectLane=3,ReferenceRGB=ch.TargetRGB})
+check(ui.WorldChoice3.Card.BackgroundColor3.G>ui.WorldChoice3.Card.BackgroundColor3.R,"resolved correct gate is highlighted")
+challenge({Phase="PREVIEW",Stage=2,CharacterId=2,ReferenceRGB=Characters.get(2).TargetRGB,Choices={}})
+check(not ui:FindFirstChild("WorldChoice3"),"next stage clears prior revealed answer")
+local lateStage=stages:FindFirstChild("Stage08");lateStage.Parent=nil
+challenge({Phase="PREVIEW",Stage=8,ReferenceRGB=ch.TargetRGB,Choices={}})
+check(not ui:FindFirstChild("WorldReference"),"missing streamed stage defers its world portrait safely")
+lateStage.Parent=stages;advanceTime(2)
+check(ui:FindFirstChild("WorldReference")~=nil,"background retry draws sector after its geometry arrives")
+snapshot({OpenWindow="Album"});check(named("Character1")and named("Character10"),"gallery loads ten actual originals")
+click("Next");check(named("Character11")and mounts[#mounts].Id==20,"album pagination reaches next characters")
+for _=1,23 do click("Next")end
+check(named("Character250")and mounts[#mounts].Id==250,"all 250 original citizens reachable")
+before=#mounts;snapshot({Seconds=17});check(#mounts==before,"timer updates do not reconstruct album")
+challenge({Phase="PREVIEW",ReferenceRGB=ch.TargetRGB,Choices={}})
+check(not named("Overlay").Visible and not ui:FindFirstChild("Character250",true),"live preview closes answer gallery")
+challenge({OpenWindow="Album"});check(not named("Overlay").Visible and contains("álbum vuelve"),"competitor cannot reopen catalog during choice")
+local function rival(id,name)local r=node("Player",name);r.UserId,r.DisplayName=id,name;roster[id]=r;return r,makeCharacter(r)end
+local blue,blueH=rival(20,"Azul");local green,greenH=rival(30,"Verde")
+challenge({Mode="LOBBY",SpectatorIds={20,30}})
+check(named("SpectatorControls").Visible and workspace.CurrentCamera.CameraSubject==ownHumanoid,"late arrival gets voluntary observation")
+n=#sent;click("Observe");check(workspace.CurrentCamera.CameraSubject==blueH,"observe follows competitor")
+click("NextObserved");check(workspace.CurrentCamera.CameraSubject==greenH,"next cycles camera")
+click("Observe");check(workspace.CurrentCamera.CameraSubject==ownHumanoid and #sent==n,"observation submits no game or purchase action")
+click("Observe");snapshot({Phase="RESULTS",Mode="LOBBY",SpectatorIds={30}})
+check(workspace.CurrentCamera.CameraSubject==ownHumanoid and not named("SpectatorControls").Visible,"results restore lobby camera")
+challenge({Mode="LOBBY",SpectatorIds={20,30}});click("Ghost")
+check(sent[#sent][1]=="EnterGhost"and sent[#sent][2]==nil,"ghost entry asks authoritative server")
+challenge({Mode="GHOST",SpectatorIds={20,30}})
+check(contains("FANTASMA · sin premios")and not named("Observe").Visible and workspace.CurrentCamera.CameraSubject==ownHumanoid,"ghost role discloses no round rewards and keeps own camera")
+click("Ghost");check(sent[#sent][1]=="LeaveGhost","ghost can explicitly leave")
+challenge({Mode="ALIVE",SpectatorIds={20,30}});check(not named("SpectatorControls").Visible,"competitor cannot spectate")
+snapshot();local previous=ownHumanoid;ownHumanoid=makeCharacter(player);player.CharacterAdded:fire(player.Character);advanceTime(0)
+check(workspace.CurrentCamera.CameraSubject==ownHumanoid and previous~=ownHumanoid,"respawn restores camera to replacement avatar")
+snapshot({OpenWindow="Leaderboards",RoomBoard={{Place=1,UserId=10,DisplayName="Ariel",CorrectThisMatch=4,Alive=true}},
+ GlobalBoards={Wins={{Rank=1,UserId=20,Name="Azul",Value=75}},Streak={{Rank=1,UserId=30,Name="Verde",Value=25}},Level={{Rank=1,UserId=20,Name="Azul",Value=12}}}})
+check(contains("4 aciertos")and contains("Esta partida"),"room board represents this match")
+click("Wins");check(named("Rank1").Score.Text=="75","global wins display authoritative score")
+click("Streak");check(named("Rank1").Score.Text=="25","global streak displays authoritative score")
+click("Level",named("Tabs"));check(named("Rank1").Score.Text=="12","global level displays authoritative score")
+input.TouchEnabled=true;workspace.CurrentCamera.ViewportSize=vector(850,390);workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):fire()
+check(not named("Wallet").Visible and named("Menu").Position.X.Scale==0.5,"compact touch layout protects thumb corners")
+input.TouchEnabled=false;workspace.CurrentCamera.ViewportSize=vector(1200,700);workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):fire()
+check(named("Wallet").Visible,"desktop restores wallet")
+workspace:SetAttribute("ColorChaosBootStatus","ERROR")
+check(contains("servidor"),"server startup failure shows client status")
+ui:Destroy();advanceTime(2);check(#scheduled==0,"background sync polling stops after GUI removal")
+print("Color Chaos UI smoke checks: "..checks.." passed (API mocks; no Roblox engine).")

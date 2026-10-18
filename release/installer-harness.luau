@@ -81,6 +81,24 @@ local function node(class, name, parent)
 	value.Name, value.Parent = name, parent
 	return value
 end
+-- @SCENE@
+local function sceneNode(spec, name, parent)
+	local value = node(spec["$className"], name, parent)
+	for property, content in pairs(spec["$properties"] or {}) do
+		if property == "Position" or property == "Size" then
+			value[property] = { X = content[1], Y = content[2], Z = content[3] }
+		elseif property == "CFrame" then
+			local position = (content.CFrame or content).position
+			value.Position = { X = position[1], Y = position[2], Z = position[3] }
+		else
+			value[property] = content
+		end
+	end
+	for childName, child in pairs(spec) do
+		if string.sub(childName, 1, 1) ~= "$" then sceneNode(child, childName, value) end
+	end
+	return value
+end
 local game = {}
 function game:GetService(name)
 	if name == "DataStoreService" or name == "MarketplaceService" then error("Installer must not access data or sales") end
@@ -123,21 +141,19 @@ local function prepare()
 	local shared = node("Folder", "ColorChaos", stagedReplicated)
 	node("ModuleScript", "Config", shared).Source = "return { Commerce = { PassId = 0 } }"
 	node("ModuleScript", "Rules", shared)
+	for _, name in ipairs({ "GameSettings", "Catalog", "Characters", "Portrait", "GameRules", "Economy", "ProfileLedger", "Progression" }) do
+		node("ModuleScript", name, shared).Source = "return { NewVersion = true }"
+	end
 	local stagedServer = node("Folder", "ServerScriptService", fixture.Package)
 	local server = node("Folder", "ColorChaosServer", stagedServer)
 	node("Script", "Main", server).Disabled = true
+	for _, name in ipairs({ "Profiles", "Leaderboards", "Cosmetics", "Commerce" }) do node("ModuleScript", name, server) end
 	local stagedStarter = node("Folder", "StarterPlayerScripts", fixture.Package)
 	local client = node("Folder", "ColorChaosClient", stagedStarter)
 	node("LocalScript", "Main", client).Disabled = true
 	node("LocalScript", "Bootstrap", client).Disabled = true
 	local stagedWorkspace = node("Folder", "Workspace", fixture.Package)
-	local world = node("Folder", "ColorChaosWorld", stagedWorkspace)
-	local spawn = node("SpawnLocation", "LobbySpawn", world)
-	spawn.Anchored, spawn.Neutral = true, true
-	spawn.Position, spawn.Size = { X = 0, Y = 7, Z = 153 }, { X = 10, Y = 1, Z = 10 }
-	local floor = node("Part", "Plaza del reactor", world)
-	floor.Anchored, floor.CanCollide = true, true
-	floor.Position, floor.Size = { X = 0, Y = 5, Z = 145 }, { X = 110, Y = 3, Z = 80 }
+	local world = sceneNode(sceneSpec, "ColorChaosWorld", stagedWorkspace)
 	fixture.StagedWorld = world
 	script.Parent = fixture.Package
 	failures, outputs = {}, {}
@@ -159,10 +175,13 @@ local installed = fixture.Services.ReplicatedStorage.ColorChaos
 check(installed.Config ~= fixture.OriginalConfig, "Preserved Config is cloned")
 check(installed.Config.Source == fixture.OriginalConfig.Source, "Complete Config including real IDs and store name retained verbatim")
 check(installed.Rules ~= nil, "New shared code installed")
+check(installed.GameSettings.Source == "return { NewVersion = true }", "New independent gameplay settings installed despite preserving old Config")
 check(fixture.Services.ServerScriptService.ColorChaosServer.Main.Disabled == false, "Server enabled after installation")
 local client = fixture.Services.StarterPlayer.StarterPlayerScripts.ColorChaosClient
 check(not client.Main.Disabled and not client.Bootstrap.Disabled, "All player scripts enabled after installation")
 check(fixture.Services.Workspace.ColorChaosWorld.LobbySpawn.Anchored, "Serialized lobby installed")
+check(fixture.Services.Workspace.ColorChaosWorld.Stages.Stage08.Gates.Gate5.PortraitAnchor.Anchored,
+	"Final sector and fifth portrait are installed from actual scene geometry")
 check(fixture.Other.Parent == fixture.Services.Workspace, "Unrelated scene preserved")
 check(fixture.Package.Parent == fixture.Services.ServerStorage, "Staged scene removed from the active world")
 check(fixture.Services.Workspace:FindFirstChild("ColorChaosUpdate") == nil, "No staged model remains in Workspace")
@@ -204,6 +223,32 @@ fixture.StagedWorld.LobbySpawn.Position = { X = 999, Y = 7, Z = 153 }
 ok = pcall(Installer.apply)
 check(not ok, "Spawn outside safe floor rejected")
 check(fixture.Services.ServerStorage:GetDescendants()[1] == nil, "Unsafe world creates no backup or partial update")
+
+prepare()
+fixture.StagedWorld.LobbySpawn.Enabled = false
+ok = pcall(Installer.apply)
+check(not ok and not fixture.OriginalMain.Disabled, "Disabled spawn rejected before mutating old game")
+
+prepare()
+node("SpawnLocation", "UnexpectedSpawn", fixture.StagedWorld)
+ok = pcall(Installer.apply)
+check(not ok and fixture.OriginalServer.Parent == fixture.Services.ServerScriptService, "Extra spawn rejected before replacing old game")
+
+prepare()
+fixture.StagedWorld.Stages.Stage08.Gates.Gate5.ChoicePad:Destroy()
+ok = pcall(Installer.apply)
+check(not ok, "Missing final-sector choice pad prevents incomplete installation")
+check(fixture.Services.ServerStorage:GetDescendants()[1] == nil, "Incomplete course does not create a partial backup")
+
+prepare()
+fixture.Package.ReplicatedStorage.ColorChaos.GameSettings:Destroy()
+ok = pcall(Installer.apply)
+check(not ok and fixture.OriginalConfig.Parent == fixture.OriginalShared, "Missing new gameplay module leaves original Config intact")
+
+prepare()
+fixture.Package.StarterPlayerScripts.ColorChaosClient.Bootstrap:Destroy()
+ok = pcall(Installer.apply)
+check(not ok and not fixture.OriginalUI.Disabled, "Missing independent welcome blocks incomplete update")
 
 prepare()
 fixture.OriginalConfig:Destroy()

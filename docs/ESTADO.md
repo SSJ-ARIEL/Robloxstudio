@@ -1,45 +1,48 @@
-# Estado de Color Chaos 1.1.0
+# Estado de Color Chaos 2: Ciudad Prisma
 
-Fecha: 15 de octubre de 2026. Actualización del primer juego con lobby permanente, lava y elevación cooperativa. Color Rush conserva su entrega independiente.
+Reconstrucción solicitada el 15 de octubre de 2026. La dinámica actual consiste en recordar personajes 3D y elegir entre cinco puertas, avanzando por ocho sectores. Sustituye las rondas cooperativas anteriores de Color Chaos. La experiencia independiente Color Rush conserva su propia carpeta y entrega.
 
-## Cambios
+## Entrega
 
-- Piso, spawn neutral, tienda, carteles, escaleras y mirador guardados dentro del archivo antes de ejecutar scripts.
-- Inicio con una persona; los tres desafíos y sus recompensas se conservan.
-- Lava ascendente durante el juego; cada avance nuevo eleva plataformas y jugadores. Repetir pasos de memoria no permite ganar altura extra.
-- Preparación con el avatar quieto, retorno seguro al caer, espera en lobby y cámara opcional de espectador.
-- La lava queda fuera del mirador; detección de pies compatible con R6 y R15.
-- Fallar al obtener DataStore no impide comenzar rondas gratuitas; los paquetes de monedas permanecen bloqueados sin guardado fiable.
-- Bienvenida independiente del servidor y aviso de espera si la partida no consigue iniciar.
-- Modelo de actualización manual que conserva Config completo, los cuatro IDs, el almacén de progreso y una copia local de los objetos anteriores.
+- Mundo permanente incluido en el archivo: plaza, spawn seguro, jardines, tienda, regalos, galería, podio, paneles y recorrido de ocho sectores con cuarenta puertas.
+- Referencia de dos segundos, personaje con color alterado y cinco alternativas 3D con una respuesta correcta.
+- Práctica desde una persona y competición de hasta veinte, con final de velocidad.
+- Eliminados y jugadores tardíos esperan en lobby; pueden observar o recorrer como fantasmas sin premios por respuestas ni victorias.
+- Regalo gratuito por cada cinco aciertos seguidos y regalos diarios por tiempo conectado.
+- Diamantes gratuitos, monedas, XP, nivel, inventario de trajes, emotes, reacciones y estelas.
+- Clasificaciones de sala y globales de victorias, mejor racha y nivel.
+- Tres paquetes de monedas y VIP existentes conservados, sin vender resultados aleatorios.
+- Actualizador manual que conserva Config íntegro, respalda objetos anteriores y mantiene inactivo el paquete importado.
 
-## Verificado en esta nube
+## Comprobaciones de esta entrega
 
-Compilación de **17 fuentes Luau** y **396 comprobaciones satisfactorias**:
+La validación integral pasó con **31 fuentes Luau compiladas y 5134 comprobaciones satisfactorias**. Estas cifras corresponden a Ciudad Prisma y no reutilizan los resultados de la versión anterior.
 
-| Comprobaciones | Cantidad |
+| Área | Comprobaciones |
 | --- | ---: |
-| Reglas | 20 |
-| Misiones | 29 |
-| Registro de recibos | 25 |
-| Comercio | 91 |
-| Servidor y escena, siete escenarios | 106 |
-| Interfaz y cámara | 53 |
-| Bienvenida e inicio tardío | 16 |
-| Instalador y restauración ante fallos | 56 |
+| Reglas, comercio, perfiles, economía y clasificaciones | 678 |
+| Servidor y seis escenarios de integración | 131 |
+| Interfaz y espectador | 77 |
+| Bienvenida independiente y arranque | 17 |
+| Personajes y retratos 3D | 3784 |
+| Cosméticos y emotes | 383 |
+| Instalador y restauración ante fallos | 64 |
+| **Total** | **5134** |
 
-Las simulaciones ejecutan los cuerpos reales de los scripts y módulos con servicios limitados. Cubren los tres desafíos, entrada tardía, caídas durante preparación/juego, respawn sin reingreso, elevación y reinicio de lava, guardado inaccesible, compatibilidad con Config antiguo y compras duplicadas. El instalador conserva la configuración, mantiene copias e importaciones inactivas y repone objetos originales ante un fallo simulado. Después de instalar, retira el paquete de Workspace para evitar geometría y puntos de aparición duplicados.
+Las pruebas ejecutan los módulos y scripts reales con servicios simulados. Cubren preguntas, elegibilidad, práctica, fantasmas, rachas, regalos gratuitos, compras, recibos, migración de perfiles, clasificaciones, interfaz e inicio. El instalador se verifica con geometría leída del escenario actual; conserva Config literalmente, respalda objetos, mantiene inactivo el paquete importado, restaura ante fallos y rechaza módulos, puertas o puntos de aparición incompletos.
 
-Rojo construye la experiencia en `.rbxl` y `.rbxlx`, el actualizador en `.rbxm` y `.rbxmx`, y una carpeta ZIP de Color Chaos. El XML del actualizador se inspecciona para confirmar que los tres scripts ejecutables están desactivados al importar. El ZIP se comprueba por integridad.
+El empaquetador genera `ColorChaos2.rbxl`, `ColorChaos2.rbxlx`, `ColorChaosUpdate.rbxm`, `ColorChaosUpdate.rbxmx` y `ColorChaos2-completo.zip`. Inspecciona el XML del lugar para verificar las 954 piezas permanentes ancladas con transformaciones CFrame explícitas, el spawn sobre el piso, ocho sectores, cuarenta puertas y fuentes no vacías. Comprueba referencias únicas, los scripts desactivados del modelo importado y la integridad CRC del ZIP. La carpeta incluye las dos ilustraciones promocionales nuevas y las guías de publicación.
 
-## Aplicación a tu juego
+## Qué se conserva al actualizar
 
-Usa [ACTUALIZAR_LOBBY.md](ACTUALIZAR_LOBBY.md) sobre **la experiencia Color Chaos existente**. El Config de esa experiencia se conserva automáticamente. Los archivos completos llevan IDs de plantilla en cero; para un juego ya configurado, utiliza el modelo de actualización.
+El actualizador sustituye las cuatro carpetas administradas del juego y copia el Config completo del lugar existente. Mantiene el nombre de DataStore —por defecto `ColorChaos_Player_v1`—, las claves `Player_<UserId>` y los recibos numéricos anteriores. Los nuevos ajustes de juego usan GameSettings para no depender de valores antiguos de lava o rondas que pueda conservar Config.
 
-Publica desde tu cuenta y entra en un servidor nuevo. Los servidores que ya estaban abiertos pueden seguir con el contenido anterior hasta que finalicen o los reinicies desde el Dashboard. El instalador no modifica DataStore ni publica por ti.
+La copia en ServerStorage respalda objetos locales, no datos de jugadores. El instalador no escribe DataStore, no procesa compras y no publica. Los archivos completos llevan los cuatro IDs en cero; para una experiencia ya configurada utiliza [el actualizador](ACTUALIZAR_LOBBY.md).
 
 ## Límite de verificación
 
-La entrega anterior no incluía piso ni spawn en el archivo: dependía del arranque del servidor. Este riesgo está corregido. Sin el mensaje de Salida del juego publicado no se ha identificado la excepción exacta que causó el reporte del usuario.
+Este entorno no ejecuta Roblox Studio ni la aplicación Roblox. No se han comprobado aquí física, renderizado, controles reales, publicación, consultas de DataStore de tu cuenta ni cobros reales. Las simulaciones ejecutan módulos y scripts con sustitutos de servicios y no acreditan esas operaciones.
 
-Este entorno no ejecuta Roblox Studio ni el cliente de Roblox. No se han verificado aquí física, renderizado, controles reales, publicación, servicios de DataStore ni facturación real. Los checks de simulación no acreditan esas operaciones.
+El archivo inicial dependía del arranque del servidor para crear su piso y spawn. En el escenario posterior se encontraron posiciones guardadas mediante la propiedad derivada Position; esta entrega serializa las transformaciones CFrame nativas de todas las piezas para evitar esa ambigüedad al cargar. La reconstrucción incluye el mundo y el spawn antes de ejecutar scripts. El reporte anterior de pantalla vacía no incluía el mensaje concreto de Salida; no se puede atribuir con certeza a una excepción única sin ese registro.
+
+El juego conserva un lobby visible ante un fallo de un sistema secundario. Si una ronda no inicia, recoge el primer error de **Salida / Output**. La descripción “no carga nada” por sí sola no distingue una importación incompleta, una versión antigua, un Config inválido o un error del servidor.

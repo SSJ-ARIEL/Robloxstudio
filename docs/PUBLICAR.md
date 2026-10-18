@@ -1,150 +1,112 @@
-# Publicar Color Chaos y activar las compras
+# Abrir y publicar Color Chaos 2: Ciudad Prisma
 
-Esta guía es para Windows. Puedes abrir y publicar el juego **sin instalar Rojo**. Rojo se utiliza después para sincronizar actualizaciones del código.
+**Si ya publicaste Color Chaos y configuraste sus compras, usa primero [la actualización que conserva tus IDs](ACTUALIZAR_LOBBY.md).** Esta guía explica cómo abrir el archivo completo y configurar una experiencia. No necesitas instalar Rojo para hacerlo.
 
-Hay tres cosas diferentes: GitHub guarda los archivos, Roblox Studio abre y publica el juego, y Roblox administra los servidores y los pagos. No necesitas alquilar un servidor.
+## 1. Abrir el archivo correcto
 
-**Si Color Chaos ya está publicado y configuraste las compras, usa [Actualizar el lobby](ACTUALIZAR_LOBBY.md). Ese método conserva automáticamente tus IDs y actualiza la misma experiencia. Los siguientes pasos sirven para una primera publicación.**
+1. Descarga [ColorChaos2-completo.zip](https://github.com/SSJ-ARIEL/Robloxstudio/raw/refs/heads/main/downloads/ColorChaos2-completo.zip).
+2. En Windows, haz clic derecho sobre el ZIP y selecciona **Extraer todo**. Abre la carpeta extraída **ColorChaos2**.
+3. Inicia Roblox Studio y selecciona **Archivo → Abrir un archivo**.
+4. Entra en **ColorChaos2 → downloads** y selecciona **ColorChaos2.rbxl**. Se abre un archivo, no toda la carpeta. `ColorChaos2.rbxlx` contiene el mismo juego en formato XML.
+5. Al abrirlo debe verse la ciudad, la plaza y el recorrido, aunque todavía no hayas pulsado Jugar. En **Explorador → Workspace → ColorChaosWorld** están el mapa y LobbySpawn.
 
-## 1. Descargar el juego
+Los 250 personajes se representan mediante modelos propios en los retratos del juego. No necesitas buscar fotos ni subir 250 imágenes a Roblox. Para que aparezcan los retratos y la interfaz, inicia la simulación; el mundo permanente ya está incluido en el archivo.
 
-1. Abre [Descargar proyecto completo](https://github.com/SSJ-ARIEL/Robloxstudio/archive/refs/heads/main.zip). Si el repositorio es privado, inicia sesión con la cuenta que tiene acceso.
-2. En Descargas, haz clic derecho sobre el ZIP y selecciona **Extraer todo**. No trabajes dentro del ZIP.
-3. Abre la carpeta extraída y entra en **downloads**.
-4. El archivo del juego es **ColorChaos.rbxlx**. El código fuente está en la carpeta **src**, fuera de downloads.
+## 2. Nombre, descripción y publicación
 
-## 2. Abrirlo en Roblox Studio
+Si los botones de publicar aparecen desactivados, pulsa **Detener** y comprueba que abriste el archivo completo `.rbxl`, no el modelo `.rbxm` de actualización.
 
-1. Instala [Roblox Studio desde Roblox](https://create.roblox.com/) e inicia sesión con la cuenta que será dueña de la experiencia.
-2. En Studio, selecciona **File → Open from File / Archivo → Abrir desde archivo**.
-3. Elige `downloads/ColorChaos.rbxlx`.
+1. Selecciona **Archivo → Publicar en Roblox** para crear una experiencia nueva. Si vas a sustituir tu Color Chaos existente desde este archivo completo, copia primero sus cuatro IDs y su configuración de guardado; después usa **Publicar en Roblox como**, seleccionando **esa experiencia y su mismo lugar inicial**. El actualizador es la opción más sencilla para conservarlos automáticamente.
+2. Nombre sugerido: **Color Chaos: Ciudad Prisma**.
+3. Descripción para copiar:
 
-Desde la versión 1.1.0 el lobby, el mirador, el piso y el punto de aparición se ven en el editor antes de ejecutar el juego. Solo los desafíos de cada ronda se construyen al arrancar el servidor. Si el archivo se ve vacío, comprueba que abriste la nueva descarga de Color Chaos.
+   > Observa al personaje, recuerda su color y corre hacia la puerta correcta. Recorre ocho sectores de Ciudad Prisma y descubre 250 personajes originales. Consigue monedas y diamantes jugando, recibe regalos por tiempo y desbloquea trajes, emotes, reacciones y estelas. Cada cinco aciertos seguidos ganas un regalo gratis. Si quedas fuera, observa o explora como fantasma mientras esperas. Compite en las clasificaciones de sala y globales. Las compras son opcionales.
 
-## 3. Crear la experiencia en tu cuenta
+4. En **Creador**, selecciona la cuenta o grupo propietario. Marca computadora, teléfono y tablet; habilita otros dispositivos cuando hayas comprobado sus controles.
+5. Guarda/publica. Conserva el enlace de la experiencia.
+6. Configura **Máximo de jugadores: 20** en los ajustes del lugar/experiencia. El código admite hasta veinte participantes por partida.
 
-1. Con el archivo abierto, selecciona **File → Publish to Roblox / Archivo → Publicar en Roblox**.
-2. Si es la primera publicación, crea una experiencia nueva y selecciona su propietario. Los productos se crearán bajo ese mismo propietario.
-3. Usa **Color Chaos: Reactor Cromático** como nombre de trabajo. El nombre sigue pendiente de comprobar; cámbialo si entra en conflicto con otra marca o experiencia.
-4. Puedes usar esta descripción:
+Una persona puede practicar. Con dos o más participantes al comienzo se activa la competición. Quienes llegan después esperan en el lobby o juegan voluntariamente como fantasmas hasta la siguiente partida.
 
-   > La lava sube: coopera para elevar las plataformas y reparar el reactor. Recuerda secuencias, repara estaciones y rescata chispas. Explora el lobby, observa las partidas desde el mirador, completa misiones y personaliza tu aura. Juega solo o con amigos. Los colores incluyen letras para ayudarte a reconocerlos.
+## 3. Conservar o crear los productos
 
-5. Guarda/publica. Anota el enlace de la experiencia.
-6. En **Game Settings / Configuración del juego**, o en la configuración del lugar del Creator Dashboard, establece **Max Players / Máximo de jugadores: 12**.
-7. Conserva inicialmente la audiencia **Private / Privada** mientras completas los productos y la configuración. Esto no requiere crear una segunda experiencia.
+Si ya tienes los tres paquetes y el pase de Color Chaos, **conserva sus IDs**. No hace falta volver a crearlos. Para una experiencia nueva, abre [Creator Dashboard → Creaciones](https://create.roblox.com/dashboard/creations), selecciona la experiencia y entra en **Monetización → Productos del desarrollador**.
 
-**En las actualizaciones conservarás esta misma experiencia y este mismo lugar inicial.** No crearás el juego de nuevo.
+Crea estos tres productos repetibles. Los precios son sugerencias iniciales; cambia los precios desde el panel, no los identificadores del código.
 
-## 4. Crear los tres paquetes de monedas
+| Nombre | Descripción para copiar | Precio sugerido | Imagen |
+| --- | --- | ---: | --- |
+| 100 monedas | Recibe 100 monedas de Color Chaos para desbloquear cosméticos de tu elección. También puedes ganar monedas jugando. No entrega Robux ni respuestas. | 9 Robux | `assets/coins100.png` |
+| 400 monedas | Recibe 400 monedas de Color Chaos para elegir trajes, emotes, reacciones y estelas del catálogo. La compra entrega una cantidad fija de monedas internas. | 29 Robux | `assets/coins400.png` |
+| 1000 monedas | Recibe 1000 monedas de Color Chaos para personalizar tu personaje con artículos del catálogo. No incluye regalos aleatorios ni ventajas para ganar. | 59 Robux | `assets/coins1000.png` |
 
-Estas compras usan los Robux que el jugador ya tiene. La compra de Robux como moneda de Roblox corresponde a Roblox; nuestro juego vende artículos mediante sus ventanas oficiales.
+Guarda cada producto y copia su **ID de producto**, no el ID de la imagen ni el precio. Los productos deben pertenecer a esta experiencia.
 
-1. Abre [Creator Dashboard → Creations](https://create.roblox.com/dashboard/creations).
-2. Selecciona **la experiencia que acabas de publicar**.
-3. Entra en **Monetization → Developer Products / Monetización → Productos de desarrollador**.
-4. Pulsa **Create developer product / Crear producto**.
-5. Crea los tres productos de la tabla. Introduce un precio en Robux en el panel de Roblox; ese precio no se escribe en el código.
+Después entra en **Monetización → Pases**, crea **VIP Prisma** con `assets/vip-prisma.png` y esta descripción:
 
-| Nombre | Descripción para copiar | Entrega exacta | Imagen incluida |
-| --- | --- | --- | --- |
-| 100 monedas | Recibe 100 monedas de Color Chaos para desbloquear auras cosméticas. No entrega Robux. | 100 monedas | `assets/coins100.png` |
-| 400 monedas | Recibe 400 monedas de Color Chaos para desbloquear auras cosméticas. No entrega Robux. | 400 monedas | `assets/coins400.png` |
-| 1000 monedas | Recibe 1000 monedas de Color Chaos para desbloquear auras cosméticas. No entrega Robux. | 1000 monedas | `assets/coins1000.png` |
+> Desbloquea el aura Prisma, un título VIP, el traje Centinela Prisma y la Estela Prisma. Beneficios cosméticos permanentes en esta experiencia. No cambia las respuestas, las probabilidades de regalos ni las condiciones para ganar.
 
-6. En el campo de imagen de cada producto, selecciona su PNG de la tabla. La carpeta **assets** está dentro del proyecto extraído; los tres iconos son originales y miden 512 × 512 píxeles. No selecciones los archivos SVG: son las fuentes editables.
-7. Guarda cada producto. En su menú **⋯**, elige **Copy Asset ID / Copiar ID del recurso** y anota el número junto a su nombre.
+Activa su venta y fija el precio que elijas; la sugerencia inicial es **79 Robux**. Copia su **PassId**. Los importes definitivos, incluidos ajustes regionales, son los que confirma la ventana oficial de Roblox.
 
-Esos números son los **ProductId** que necesita el juego. No uses el ID de la experiencia, el del lugar ni el de la imagen. Los tres productos deben pertenecer a esta experiencia.
+## 4. Colocar los IDs en Studio
 
-## 5. Crear el pase VIP Prisma
+1. En Studio pulsa **Detener** y abre **Explorador**.
+2. Abre **ReplicatedStorage → ColorChaos → Config** haciendo doble clic en Config.
+3. Busca **Config.Commerce**. Cambia únicamente los cuatro ceros correspondientes:
 
-1. En la misma experiencia del Dashboard, entra en **Monetization → Passes / Monetización → Pases**.
-2. Selecciona **Create pass / Crear pase**.
-3. Nombre: **VIP Prisma**.
-4. Descripción:
+   | Código que identifica el artículo | Campo que cambias |
+   | --- | --- |
+   | `Key = "coins100"` | Su `ProductId = 0` por el ID de 100 monedas |
+   | `Key = "coins400"` | Su `ProductId = 0` por el ID de 400 monedas |
+   | `Key = "coins1000"` | Su `ProductId = 0` por el ID de 1000 monedas |
+   | `VIP` | Su `PassId = 0` por el ID del pase VIP |
 
-   > Desbloquea el aura cosmética Prisma y un título VIP sobre tu personaje. Compra permanente para esta experiencia. No aumenta las recompensas ni permite ganar automáticamente.
+4. Escribe números sin comillas, conservando las comas. **No sustituyas esos ceros por los precios.** No cambies `Coins`, `Key`, `DataStoreName` ni los registros de recibos.
+5. Selecciona **Archivo → Publicar en Roblox** para guardar los cambios en la misma experiencia.
 
-5. Selecciona **assets/vip-prisma.png** como imagen del pase y créalo. Es un icono original de 512 × 512 píxeles incluido en la entrega.
-6. En su configuración de venta, **Sales / Ventas** cuando aparezca con ese nombre, activa la venta, fija el precio en Robux y guarda.
-7. Desde la lista de pases, abre **⋯ → Copy Asset ID / Copiar ID del recurso**. Anota ese número como **PassId VIP**.
+Un artículo con ID cero queda inactivo. El precio se consulta a Roblox; el servidor entrega monedas únicamente mediante el recibo oficial confirmado. En Studio el progreso es temporal y no se procesan compras de productos que dependan de guardado real.
 
-El pase se compra una vez. Los paquetes de monedas son compras repetibles. El pase debe ser de esta misma experiencia.
+## 5. Imágenes y acceso público
 
-## 6. Colocar los cuatro identificadores sin instalar Rojo
+En la configuración de contenido de Creator Dashboard, selecciona **Icono** y sube **ColorChaos2 → assets → ciudad-prisma-icono.png**. En **Miniaturas**, sube **ciudad-prisma-banner.png** de esa misma carpeta. Son imágenes nuevas de Ciudad Prisma; los archivos antiguos `logo.png` y `banner.png` pertenecen al diseño anterior. También puedes capturar el escenario real desde Studio. Las imágenes nuevas son ilustraciones promocionales, no capturas del motor; [su documentación](../assets/CIUDAD_PRISMA_ART.md) está incluida.
 
-Necesitas tres ProductId y un PassId. Son identificadores de productos, no contraseñas ni tokens.
+Completa el cuestionario de madurez y cumplimiento describiendo el contenido real. En **Público / Audiencia / Acceso**, selecciona la audiencia deseada cuando Roblox habilite esa opción para tu cuenta. Los nombres exactos de estas secciones pueden cambiar. Cumple los requisitos que te muestre el panel; no crees otra experiencia para intentar evitar una restricción de cuenta.
 
-1. Vuelve a Studio, al juego que acabas de publicar. Si lo cerraste, ábrelo desde **tus experiencias** con **Edit in Studio / Editar en Studio**.
-2. Detén cualquier simulación con **Stop / Detener**.
-3. Activa **Explorer / Explorador** desde las herramientas de ventanas de Studio si no está visible.
-4. En Explorer, abre **ReplicatedStorage → ColorChaos → Config**. Haz doble clic en **Config** para abrir el código.
-5. Busca la sección **Config.Commerce**. Cada producto tiene una línea `Key` que identifica qué entrega. Cambia **solo su número `ProductId = 0`**:
+Publicar una versión y hacer pública la experiencia son acciones diferentes. Después de publicar, abre el enlace desde la aplicación Roblox en un servidor nuevo. Las tablas globales necesitan registros guardados de jugadores reales y pueden tardar en actualizarse; no aparecen rellenas con nombres inventados.
 
-| Línea que buscas | Número que sustituyes |
-| --- | --- |
-| `Key = "coins100"` | Su `ProductId = 0`, por el ID del producto de 100 monedas |
-| `Key = "coins400"` | Su `ProductId = 0`, por el ID del producto de 400 monedas |
-| `Key = "coins1000"` | Su `ProductId = 0`, por el ID del producto de 1000 monedas |
-| `VIP` | Su `PassId = 0`, por el ID del pase VIP Prisma |
+## 6. Si Roblox muestra “Error al guardar”
 
-6. Escribe los números sin comillas. Conserva las comas y el resto del código. No cambies las cantidades `Coins`, los `Key` ni los datos del guardado.
-7. Selecciona **File → Publish to Roblox** para actualizar **la misma experiencia**.
+Ese aviso no identifica la causa por sí solo y no significa que Roblox solo admita un juego por cuenta. Conserva el archivo local. Comprueba que Studio está actualizado, que iniciaste sesión con el propietario y que tienes conexión. Abre **Vista → Salida** y copia el primer mensaje rojo completo al volver a publicar. Revisa [el estado de Roblox](https://status.roblox.com/) si hay una incidencia.
 
-Los identificadores empiezan en `0` porque no pueden crearse desde este repositorio en tu cuenta. Un artículo sin ID real queda sin activar; no se simulan compras exitosas.
+Cambiar repetidamente nombres o borrar la experiencia no es necesario para diagnosticarlo. El archivo binario `.rbxl` y el XML `.rbxlx` incluidos representan el mismo proyecto; la estructura de ambos se genera con Rojo, pero la nube no confirma que tu cuenta haya completado una publicación.
 
-**Conserva los cuatro números en tu copia de [PRODUCTOS.md](PRODUCTOS.md).** Si editas Config únicamente dentro de Studio, GitHub no recibe el cambio. Antes de conectar Rojo o abrir una futura descarga, coloca también esos números en `src/shared/Config.luau`, o compártelos para que se incorporen al repositorio. Una sincronización con el archivo que todavía tiene ceros podría reemplazar tu configuración.
+## 7. Rojo, opcional para editar las fuentes
 
-## 7. Abrir el acceso al público
+Rojo tiene dos partes: **un programa en tu PC** que lee el proyecto y **un plugin en Studio** que recibe los cambios. GitHub guarda versiones de código; no sincroniza directamente con Studio.
 
-1. En Creator Dashboard, selecciona la experiencia.
-2. Completa el cuestionario **Content Maturity & Compliance / Madurez del contenido y cumplimiento** describiendo lo que realmente contiene el juego. Revisa las preguntas de nuevo si añades contenido.
-3. Cumple los requisitos de publicación y audiencia que muestre Roblox para tu cuenta. Pueden variar según la audiencia y las políticas vigentes. No hagas compras de suscripciones suponiendo que son obligatorias: revisa primero las opciones oficiales que te ofrece el panel.
-4. En **Configure → Settings / Configurar → Ajustes**, busca **Audience / Audiencia** y selecciona **Public / Pública** cuando estés listo para lanzarlo. Guarda los cambios. Algunos diseños del panel agrupan estas opciones en **Access / Acceso**.
-5. En la sección de iconos y miniaturas de la experiencia, sube **assets/logo.png** como icono y **assets/banner.png** como miniatura. El banner es una ilustración promocional del reactor; no lo describas como captura del juego. Ambos recursos son originales y están incluidos en el ZIP. No anuncies Robux gratis ni resultados garantizados.
-6. Usa el enlace de la experiencia para abrirla en la aplicación de Roblox. Los servidores se crean automáticamente cuando entran jugadores.
-
-El guardado permanente y las compras dependen de los servicios reales de Roblox. La validación automatizada del código no ejecuta el motor de Studio ni cobra compras reales. No se afirma que esas operaciones hayan sido verificadas en tu cuenta desde la nube.
-
-## 8. Rojo: instalación opcional para futuras actualizaciones
-
-Para ofrecer servidores privados, usa la sección **Monetization → Private Servers** de tu experiencia cuando Roblox la muestre. Puedes habilitarlos gratis o establecer un precio mensual en Robux. El juego utiliza las mismas rondas en esos servidores; Roblox gestiona el acceso y la suscripción. Describe el precio y el periodo claramente. Esta opción se configura en Roblox, sin inventar un ProductId adicional.
-
-Rojo tiene **dos partes**: un programa en la computadora que lee los archivos, y un plugin dentro de Studio que los recibe. Deben estar en la misma computadora. GitHub no sincroniza directamente con Studio.
-
-1. Abre [la descarga oficial de Rojo 7.6.1](https://github.com/rojo-rbx/rojo/releases/tag/v7.6.1).
-2. Para un Windows habitual de 64 bits, descarga `rojo-7.6.1-windows-x86_64.zip` y extráelo.
-3. Copia **rojo.exe** a la carpeta del proyecto, **junto a default.project.json**, fuera de downloads.
-4. En el Explorador de Windows, abre esa carpeta. Haz clic en la barra de dirección, escribe `powershell` y pulsa Enter.
-5. Comprueba el programa:
+1. Descarga [Rojo 7.6.1 para Windows](https://github.com/rojo-rbx/rojo/releases/tag/v7.6.1), extrae `rojo.exe` y colócalo junto a `default.project.json`, en la carpeta ColorChaos2.
+2. Cierra Studio. En esa carpeta, escribe `powershell` en la barra de direcciones del Explorador de Windows y pulsa Enter.
+3. Ejecuta:
 
    ```powershell
    .\rojo.exe --version
-   ```
-
-6. Cierra Studio e instala el plugin:
-
-   ```powershell
    .\rojo.exe plugin install
    ```
 
-7. Confirma que `src/shared/Config.luau` ya contiene tus cuatro IDs. Abre Studio y abre **la experiencia existente** que vas a actualizar.
-8. En PowerShell, inicia la sincronización:
+4. Conserva primero tus cuatro IDs y el nombre de DataStore en `src/shared/Config.luau`.
+5. Abre tu experiencia existente en Studio y ejecuta en PowerShell:
 
    ```powershell
    .\rojo.exe serve default.project.json
    ```
 
-9. Deja esa ventana abierta. En Studio, abre **Plugins → Rojo**, usa **localhost**, puerto **34872**, y pulsa **Connect**. Si la terminal indica otro puerto, utiliza ese.
-10. Revisa y acepta los cambios para este lugar. Después usa **File → Publish to Roblox** para publicarlos.
-
-No ejecutes `rojo init`: el proyecto ya tiene su configuración. No necesitas configurar el PATH de Windows si usas estos comandos con `rojo.exe` dentro de la carpeta. Para actualizar el juego sin instalar Rojo, consulta [OPERACION.md](OPERACION.md).
+6. Mantén abierta la terminal. En **Plugins → Rojo**, conecta a **localhost:34872**, o al puerto que indique la terminal. Revisa y aplica la sincronización.
+7. Publica desde **Archivo → Publicar en Roblox**. No ejecutes `rojo init`; la configuración ya está incluida.
 
 ## Fuentes oficiales
 
-- [Roblox: publicar experiencias y lugares](https://create.roblox.com/docs/production/publishing/publish-games-and-places).
-- [Roblox: productos de desarrollador](https://create.roblox.com/docs/production/monetization/developer-products).
-- [Roblox: pases](https://create.roblox.com/docs/production/monetization/passes).
-- [Roblox: precios regionales](https://create.roblox.com/docs/production/monetization/regional-pricing).
-- [Rojo: instalación](https://rojo.space/docs/v7/getting-started/installation/).
+- [Publicar experiencias y lugares](https://create.roblox.com/docs/production/publishing/publish-games-and-places).
+- [Productos de desarrollador](https://create.roblox.com/docs/production/monetization/developer-products).
+- [Pases](https://create.roblox.com/docs/production/monetization/passes).
+- [Precios regionales](https://create.roblox.com/docs/production/monetization/regional-pricing).
+- [Instalación de Rojo](https://rojo.space/docs/v7/getting-started/installation/).

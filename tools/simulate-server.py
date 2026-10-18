@@ -12,6 +12,10 @@ root = Path(__file__).resolve().parents[1]
 def luau_value(value, property_name=None):
     """Represent only scene data; game logic remains the actual Luau source."""
     if isinstance(value, dict):
+        if "CFrame" in value:
+            frame = value["CFrame"]
+            components = frame["position"] + [component for axis in frame["orientation"] for component in axis]
+            return f"CFrame.new({', '.join(map(str, components))})"
         if "UDim2" in value:
             axes = value["UDim2"]
             return f"UDim2.new({', '.join(str(component) for axis in axes for component in axis)})"
@@ -67,27 +71,49 @@ def serialized_world():
 
 
 server = (root / "src/server/Main.server.luau").read_text()
-modules = {
-    "Config": ("src/shared/Config.luau", "ReplicatedStorage.ColorChaos.Config"),
-    "Rules": ("src/shared/Rules.luau", "ReplicatedStorage.ColorChaos.Rules"),
-    "Progression": ("src/shared/Progression.luau", "ReplicatedStorage.ColorChaos.Progression"),
-    "Ledger": ("src/shared/ProfileLedger.luau", "ReplicatedStorage.ColorChaos.ProfileLedger"),
-    "Commerce": ("src/server/Commerce.luau", "script.Parent.Commerce"),
-}
-module_bodies = []
-for name, (path, instance_path) in modules.items():
-    declaration = f"local {name} = require({instance_path})\n"
-    if server.count(declaration) != 1:
-        raise RuntimeError(f"Expected exactly one server import for {name}")
-    server = server.replace(declaration, "")
-    source = (root / path).read_text()
-    module_bodies.append(f"local {name} = (function()\n{source}\nend)()\n")
-insertion = "".join(module_bodies) + f"local function serverMain()\n{server}\nend\n"
+modules = {}
+for section in ("shared", "server"):
+    for path in sorted((root / "src" / section).glob("*.luau")):
+        if path.name.endswith(".server.luau"):
+            continue
+        name = path.stem
+        if name in modules:
+            raise RuntimeError(f"Duplicate module name in simulation: {name}")
+        modules[name] = (section, path.read_text())
+
+chunks = ["local moduleInstances, moduleLoaders, moduleCache = {}, {}, {}\n"]
+chunks.append("""
+local function require(target)
+    assert(type(target) == "table" and target.Name, "Expected mocked ModuleScript")
+    local name = target.Name
+    if scenario == "module-failure" and name == "Cosmetics" then error("Simulated secondary module startup failure") end
+    if moduleCache[name] == nil then
+        assert(moduleLoaders[name], "Module not supplied to harness: " .. name)
+        moduleCache[name] = moduleLoaders[name]()
+    end
+    return moduleCache[name]
+end
+""")
+for name, (section, source) in modules.items():
+    folder = "shared" if section == "shared" else "serverFolder"
+    chunks.append(
+        f'moduleInstances["{name}"] = Instance.new("ModuleScript")\n'
+        f'moduleInstances["{name}"].Name = "{name}"\n'
+        f'moduleInstances["{name}"].Parent = {folder}\n'
+        f'moduleLoaders["{name}"] = function()\n'
+        f'local script = moduleInstances["{name}"]\n{source}\nend\n'
+    )
+chunks.append('local mainScript = Instance.new("Script")\nmainScript.Parent = serverFolder\n')
+chunks.append(f"local function serverMain()\nlocal script = mainScript\n{server}\nend\n")
+for name in ("Config", "GameSettings", "GameRules", "Characters", "Economy", "Catalog"):
+    if name in modules:
+        chunks.append(f'local {name} = require(moduleInstances["{name}"])\n')
+insertion = "".join(chunks)
 template = (root / "tests/server-harness.luau").read_text().replace("-- @MODULES_AND_SERVER@", insertion)
 cli = os.environ.get("LUAU_BIN", "/workspace/.tools/color-chaos/luau")
 with tempfile.TemporaryDirectory(prefix="color-chaos-simulation-") as directory:
     scene = serialized_world()
-    for scenario in ("normal", "datastore-unavailable", "fallback-world", "preparation-fall", "lava-contact", "legacy-config", "r6-lava-contact"):
+    for scenario in ("journey", "solo", "datastore-unavailable", "ghosts", "recovery", "module-failure"):
         harness = template.replace("-- @SCENARIO@", f"local scenario = {luau_value(scenario)}")
         harness = harness.replace("-- @STATIC_WORLD@", "" if scenario == "fallback-world" else scene)
         generated = Path(directory) / f"server-{scenario}.luau"

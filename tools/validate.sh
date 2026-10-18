@@ -41,6 +41,7 @@ fi
 LUAU_BIN="$tools_dir/luau" python3 tools/simulate-server.py
 LUAU_BIN="$tools_dir/luau" python3 tools/simulate-client.py
 LUAU_BIN="$tools_dir/luau" python3 tools/simulate-bootstrap.py
+LUAU_BIN="$tools_dir/luau" python3 tools/simulate-prisma-portraits.py
 LUAU_BIN="$tools_dir/luau" python3 tools/test-installer.py
 
 mkdir -p build

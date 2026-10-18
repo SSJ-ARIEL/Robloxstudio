@@ -1,901 +1,622 @@
--- Color Chaos: all objectives, purchases and rewards are server-authoritative.
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local DataStoreService = game:GetService("DataStoreService")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
-local Debris = game:GetService("Debris")
-local MarketplaceService = game:GetService("MarketplaceService")
-local Config = require(ReplicatedStorage.ColorChaos.Config)
-local Rules = require(ReplicatedStorage.ColorChaos.Rules)
-local Progression = require(ReplicatedStorage.ColorChaos.Progression)
-local Ledger = require(ReplicatedStorage.ColorChaos.ProfileLedger)
-local Commerce = require(script.Parent.Commerce)
+-- Ciudad Prisma. The saved world and spawn exist before this script runs.
+-- Only the server decides membership, physical choices, rewards and purchases.
+local function run()
+	workspace:SetAttribute("ColorChaosBootStatus", "STARTING")
+	local Players = game:GetService("Players")
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local DataStoreService = game:GetService("DataStoreService")
+	local RunService = game:GetService("RunService")
+	local HttpService = game:GetService("HttpService")
+	local MarketplaceService = game:GetService("MarketplaceService")
+	local PhysicsService = game:GetService("PhysicsService")
+	local TweenService = game:GetService("TweenService")
+	local Lighting = game:GetService("Lighting")
+	local Config = require(ReplicatedStorage.ColorChaos.Config)
+	local Settings = require(ReplicatedStorage.ColorChaos.GameSettings)
+	local Catalog = require(ReplicatedStorage.ColorChaos.Catalog)
+	local Characters = require(ReplicatedStorage.ColorChaos.Characters)
+	local GameRules = require(ReplicatedStorage.ColorChaos.GameRules)
+	local Economy = require(ReplicatedStorage.ColorChaos.Economy)
+	local Ledger = require(ReplicatedStorage.ColorChaos.ProfileLedger)
+	local Rules = require(ReplicatedStorage.ColorChaos.Rules)
+	local Profiles = require(script.Parent.Profiles)
+	local Leaderboards = require(script.Parent.Leaderboards)
+	local Cosmetics = require(script.Parent.Cosmetics)
+	local Commerce = require(script.Parent.Commerce)
 
-local events = Instance.new("Folder")
-events.Name = "Remotes"
-events.Parent = ReplicatedStorage.ColorChaos
-local stateEvent = Instance.new("RemoteEvent")
-stateEvent.Name = "State"
-stateEvent.Parent = events
-local actionEvent = Instance.new("RemoteEvent")
-actionEvent.Name = "Action"
-actionEvent.Parent = events
-
-local profiles = {}
-local participants = {}
-local lastActions = {}
-local initializing = {}
-local currentRound = nil
-local state = { Phase = "LOBBY", Message = "Preparando el reactor...", Seconds = 0, Progress = 0, Total = 0 }
--- A storage outage must never prevent the lobby or rounds from starting.
-local store
-local storageOK, storageResult = pcall(function() return DataStoreService:GetDataStore(Config.DataStoreName) end)
-if storageOK then store = storageResult else warn("Color Chaos: guardado no disponible; la partida continuará sin ventas de monedas.") end
-local sessionId = game.JobId .. HttpService:GenerateGUID(false)
-local closing = false
-local savingEnabled = store ~= nil and not RunService:IsStudio()
-local random = Random.new()
-local commerce
--- Defaults also support updating an installed game while retaining its entire Config.
-local lavaSettings = Config.Lava or { StartHeight = 10, EndHeight = 31, MaxLift = 12, HalfWidth = 80, MinZ = -110, MaxZ = 66 }
-
-local function cleanProfile(raw)
-	local data = Rules.cleanProfile(raw, #Config.Palettes)
-	data.Receipts = Ledger.cleanReceipts(type(raw) == "table" and raw.Receipts or nil)
-	data.Progress = Progression.clean(type(raw) == "table" and raw.Progress or nil, os.time(), Config)
-	return data
-end
-
-local function personal(player, extra)
-	local record = profiles[player]
-	local payload = table.clone(state)
-	payload.Participating = participants[player] ~= nil
-	payload.Alive = participants[player] ~= nil and participants[player].Alive
-	payload.ReadyPlayers, payload.AlivePlayers, payload.ParticipantCount = 0, 0, 0
-	payload.MinimumPlayers = Config.MinimumPlayers
-	payload.SpectatorIds = {}
-	for _, online in ipairs(Players:GetPlayers()) do
-		local humanoid = online.Character and online.Character:FindFirstChildOfClass("Humanoid")
-		if profiles[online] and humanoid and humanoid.Health > 0 and online.Character:FindFirstChild("HumanoidRootPart") then
-			payload.ReadyPlayers += 1
+	local world = assert(workspace:WaitForChild("ColorChaosWorld", 10), "Falta ColorChaosWorld. Importa la entrega completa.")
+	local spawn = assert(world:FindFirstChild("LobbySpawn"), "Falta LobbySpawn en el mundo guardado.")
+	local stages = assert(world:FindFirstChild("Stages"), "Falta el recorrido Stages.")
+	local gates, gatePositions = {}, {}
+	for index = 1, Settings.Stages do
+		local sector = assert(stages:FindFirstChild(string.format("Stage%02d", index)), "Falta un sector del recorrido.")
+		local group = assert(sector:FindFirstChild("Gates"), "Faltan las cinco puertas.")
+		gates[index] = {}
+		for lane = 1, 5 do
+			local gate = assert(group:FindFirstChild("Gate" .. lane), "Falta una puerta.")
+			local barrier = assert(gate:FindFirstChild("Barrier"), "Falta Barrier.")
+			assert(gate:FindFirstChild("ChoicePad"), "Falta ChoicePad.")
+			gates[index][lane], gatePositions[barrier] = gate, barrier.CFrame
 		end
-		local entry = participants[online]
-		if entry then
-			payload.ParticipantCount += 1
-			if entry.Alive then
-				payload.AlivePlayers += 1
-				table.insert(payload.SpectatorIds, online.UserId)
+	end
+	-- Also applied after an in-place update, which preserves the owner's Config.
+	Lighting.ClockTime, Lighting.Brightness = 14.4, 2.6
+	Lighting.GlobalShadows, Lighting.ExposureCompensation = true, 0.05
+	Lighting.EnvironmentDiffuseScale, Lighting.EnvironmentSpecularScale = 0.72, 0.65
+	Lighting.Ambient, Lighting.OutdoorAmbient = Color3.new(0.43, 0.49, 0.58), Color3.new(0.66, 0.71, 0.77)
+	local function lightingEffect(className, name, properties)
+		local effect = Lighting:FindFirstChild(name)
+		if effect and not effect:IsA(className) then effect:Destroy(); effect = nil end
+		if not effect then effect = Instance.new(className); effect.Name, effect.Parent = name, Lighting end
+		for property, value in pairs(properties) do effect[property] = value end
+	end
+	lightingEffect("Atmosphere", "Atmosfera", { Density = 0.17, Offset = 0.25,
+		Color = Color3.new(0.78, 0.88, 0.96), Decay = Color3.new(0.55, 0.64, 0.77), Glare = 0.12, Haze = 0.8 })
+	lightingEffect("BloomEffect", "Neon", { Intensity = 0.14, Size = 20, Threshold = 1.35 })
+	lightingEffect("ColorCorrectionEffect", "Color", { Brightness = 0, Contrast = 0.04,
+		Saturation = 0.06, TintColor = Color3.new(1, 0.99, 0.98) })
+	workspace.Gravity, workspace.FallenPartsDestroyHeight = 140, -60
+	for _, name in ipairs({ "ColorChaosPlayers", "ColorChaosGhosts", "ColorChaosGates" }) do
+		if not PhysicsService:IsCollisionGroupRegistered(name) then PhysicsService:RegisterCollisionGroup(name) end
+	end
+	PhysicsService:CollisionGroupSetCollidable("ColorChaosPlayers", "ColorChaosPlayers", false)
+	PhysicsService:CollisionGroupSetCollidable("ColorChaosGhosts", "ColorChaosPlayers", false)
+	PhysicsService:CollisionGroupSetCollidable("ColorChaosGhosts", "ColorChaosGhosts", false)
+	PhysicsService:CollisionGroupSetCollidable("ColorChaosGhosts", "ColorChaosGates", false)
+	for barrier in pairs(gatePositions) do barrier.CollisionGroup = "ColorChaosGates" end
+
+	local shared = ReplicatedStorage.ColorChaos
+	local events = shared:FindFirstChild("Remotes") or Instance.new("Folder")
+	events.Name, events.Parent = "Remotes", shared
+	local stateEvent = events:FindFirstChild("State") or Instance.new("RemoteEvent")
+	stateEvent.Name, stateEvent.Parent = "State", events
+	local actionEvent = events:FindFirstChild("Action") or Instance.new("RemoteEvent")
+	actionEvent.Name, actionEvent.Parent = "Action", events
+	local random, closing = Random.new(), false
+	local sessions, initializing, lastActions = {}, {}, {}
+	local currentRound, commerce, profiles
+	local matchCounter, lastRoom = 0, {}
+	local state = { Phase = "LOBBY", Seconds = 0, Stage = 0, StageCount = Settings.Stages,
+		MatchId = 0, Message = "Bienvenido a Ciudad Prisma", Final = false, Solo = false }
+	local store
+	if not RunService:IsStudio() then
+		local ok, result = pcall(function() return DataStoreService:GetDataStore(Config.DataStoreName) end)
+		if ok then store = result else warn("Color Chaos: guardado no disponible; modo de sesión sin ventas de monedas.") end
+	end
+	local boards = Leaderboards.new({ DataStoreService = DataStoreService, Enabled = store ~= nil,
+		Config = Config, NameForUser = function(id) return Players:GetNameFromUserIdAsync(id) end })
+	local function online(player) return player.Parent == Players end
+	local function body(player)
+		local character = player.Character
+		return character and character:FindFirstChild("HumanoidRootPart"), character and character:FindFirstChildOfClass("Humanoid")
+	end
+	local function readyPlayers()
+		local result = {}
+		for _, player in ipairs(Players:GetPlayers()) do
+			local root, humanoid = body(player)
+			local record = profiles and profiles.get(player)
+			if sessions[player] and record and not record.Leaving and root and humanoid and humanoid.Health > 0 then
+				table.insert(result, player)
 			end
 		end
+		table.sort(result, function(a, b) return a.UserId < b.UserId end)
+		return result
 	end
-	table.sort(payload.SpectatorIds)
-	payload.PlatformLift = currentRound and currentRound.Elevation or 0
-	if record then
-		payload.Profile = { Coins = record.Data.Coins, Wins = record.Data.Wins,
-			Selected = record.Data.Selected, Owned = record.Data.Owned, VIP = record.VIP == true }
-		payload.Progression = Progression.view(record.Data.Progress, os.time(), Config)
-		payload.Persistence = record.Writable and (record.LastSaveFailed and "ERROR DE GUARDADO: REINTENTANDO" or "GUARDADO ACTIVO") or "PROGRESO DE ESTA SESIÓN"
-	else
-		payload.Persistence = "CARGANDO PROGRESO"
-	end
-	payload.Commerce = commerce and commerce.getCatalog(player) or {}
-	if extra then
-		for key, value in pairs(extra) do payload[key] = value end
-	end
-	stateEvent:FireClient(player, payload)
-end
-
-local function broadcast()
-	for _, player in ipairs(Players:GetPlayers()) do personal(player) end
-end
-
-local function snapshot(data)
-	return { Coins = data.Coins, Wins = data.Wins, Selected = data.Selected, Owned = table.clone(data.Owned),
-		Receipts = table.clone(data.Receipts), Progress = Progression.clean(data.Progress, os.time(), Config) }
-end
-
-local function save(player, release)
-	local record = profiles[player]
-	if not record or not record.Writable then return end
-	-- Serialize saves, including departure saves, to preserve the most recent state.
-	while record.Saving do task.wait(0.1) end
-	if not record.Writable then return end
-	record.Saving = true
-	local data = snapshot(record.Data)
-	local updatedRevision = record.Revision
-	local ownsLock, committed = false, nil
-	local ok = pcall(function()
-		store:UpdateAsync("Player_" .. player.UserId, function(old)
-			ownsLock, committed = false, nil
-			if type(old) ~= "table" or old.Session ~= sessionId then return nil end
-			local merged = Ledger.merge(data, old.Data, Config.MaxCoins)
-			if not merged then return nil end
-			ownsLock = true
-			committed = merged
-			local envelope = { Data = merged, Session = sessionId, LeaseUntil = os.time() + 240 }
-			if release then envelope.Session = nil; envelope.LeaseUntil = nil end
-			return envelope
-		end)
-	end)
-	if ok and ownsLock then
-		local recovered = Ledger.reconcile(record.Data, committed, Config.MaxCoins)
-		if recovered == nil then
-			record.LastSaveFailed = true
-			record.Saving = false
-			return
-		end
-		if recovered and recovered > 0 then record.Revision += 1 end
-		record.PendingPaid = nil
-		record.UncertainReceipt = nil
-		record.SavedRevision = updatedRevision
-		record.LastSaveFailed = false
-	else
-		record.LastSaveFailed = true
-		if ok then record.Writable = false end
-		warn("Color Chaos: no se pudo guardar el progreso de " .. player.UserId)
-		if player.Parent then personal(player, { Toast = "No se pudo confirmar el guardado. Conserva esta sesión abierta." }) end
-	end
-	record.Saving = false
-end
-
-local function stats(player)
-	local record = profiles[player]
-	local folder = player:FindFirstChild("leaderstats")
-	if folder and record then
-		folder.Monedas.Value = record.Data.Coins
-		folder.Victorias.Value = record.Data.Wins
-	end
-end
-
-local function cosmetic(player)
-	local record, character = profiles[player], player.Character
-	if not record or not character then return end
-	local old = character:FindFirstChild("ChromaticAura")
-	if old then old:Destroy() end
-	local effect = Instance.new("Highlight")
-	effect.Name = "ChromaticAura"
-	effect.FillTransparency = 1
-	local palette = Config.Palettes[record.Data.Selected]
-	if palette.Access == "VIP" and record.VIP ~= true then palette = Config.Palettes[1] end
-	effect.OutlineColor = palette.Color
-	effect.OutlineTransparency = 0.2
-	effect.DepthMode = Enum.HighlightDepthMode.Occluded
-	effect.Parent = character
-	local r = character:FindFirstChild("HumanoidRootPart")
-	if r then
-		for _, name in ipairs({ "ChromaticTrail", "TrailStart", "TrailEnd" }) do
-			local oldTrail = r:FindFirstChild(name)
-			if oldTrail then oldTrail:Destroy() end
-		end
-		if palette.Trail then
-			local a, b = Instance.new("Attachment"), Instance.new("Attachment")
-			a.Name, a.Position, a.Parent = "TrailStart", Vector3.new(-0.9, -0.8, 0), r
-			b.Name, b.Position, b.Parent = "TrailEnd", Vector3.new(0.9, -0.8, 0), r
-			local trail = Instance.new("Trail")
-			trail.Name, trail.Attachment0, trail.Attachment1 = "ChromaticTrail", a, b
-			trail.Color, trail.Lifetime = ColorSequence.new(palette.Color), 0.45
-			trail.FaceCamera, trail.LightEmission, trail.MinLength = true, 0.8, 0.1
-			trail.Parent = r
-		end
-	end
-	local head = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
-	if head then
-		local oldTitle = head:FindFirstChild("VIPTitle")
-		if oldTitle then oldTitle:Destroy() end
-		if record.VIP == true then
-			local tag = Instance.new("BillboardGui")
-			tag.Name, tag.Size = "VIPTitle", UDim2.fromOffset(130, 32)
-			tag.StudsOffset, tag.MaxDistance = Vector3.new(0, 3.5, 0), 80
-			tag.Parent = head
-			local t = Instance.new("TextLabel")
-			t.Size, t.BackgroundTransparency = UDim2.fromScale(1, 1), 1
-			t.Text, t.TextColor3, t.TextScaled = "VIP PRISMA", Config.Palettes[5].Color, true
-			t.Font, t.Parent = Enum.Font.GothamBold, tag
-		end
-	end
-	if palette.Access == "VIP" and record.VIP == true then
-		task.spawn(function()
-			local index = 1
-			while effect.Parent and character.Parent do
-				effect.OutlineColor = Config.Colors[index].Color
-				index = index % #Config.Colors + 1
-				task.wait(1.5)
+	local function alivePlayers()
+		local result = {}
+		if currentRound then
+			for player, member in pairs(currentRound.Members) do
+				if member.Alive and online(player) then table.insert(result, player) end
 			end
-		end)
-	end
-end
-
-local function persistentGrant(player, receipt, product)
-	local record = profiles[player]
-	if not record or not record.Writable or record.Leaving then return false end
-	while record.Saving do task.wait(0.1) end
-	if profiles[player] ~= record or not record.Writable or record.Leaving then return false end
-	if record.UncertainReceipt and record.UncertainReceipt ~= receipt.PurchaseId then return false end
-	record.Saving = true
-	record.PendingPaid = product.Coins
-	local base = snapshot(record.Data)
-	local committed, newlyGranted, lockLost = nil, false, false
-	local ok = pcall(function()
-		store:UpdateAsync("Player_" .. player.UserId, function(old)
-			committed, newlyGranted, lockLost = nil, false, false
-			if type(old) ~= "table" or old.Session ~= sessionId then lockLost = true; return nil end
-			local receipts = Ledger.cleanReceipts(type(old.Data) == "table" and old.Data.Receipts or nil)
-			if not receipts[receipt.PurchaseId] then
-				local count = 0
-				for _ in pairs(receipts) do count += 1 end
-				if count >= Config.MaxReceipts then return nil end
-			end
-			local updated, isNew = Ledger.grant(base, old.Data, receipt.PurchaseId, product.Coins, Config.MaxCoins)
-			if not updated then return nil end
-			committed, newlyGranted = updated, isNew
-			return { Data = updated, Session = sessionId, LeaseUntil = os.time() + 240 }
-		end)
-	end)
-	local acknowledged = false
-	if ok and committed then
-		local recovered = Ledger.reconcile(record.Data, committed, Config.MaxCoins)
-		if recovered ~= nil then
-			record.Revision += 1
-			record.LastSaveFailed = false
-			record.UncertainReceipt, record.PendingPaid = nil, nil
-			acknowledged = true
 		end
-	else
-		record.LastSaveFailed = true
-		record.UncertainReceipt = receipt.PurchaseId
-		if lockLost then record.Writable = false end
+		table.sort(result, function(a, b) return a.UserId < b.UserId end)
+		return result
 	end
-	record.Saving = false
-	if not acknowledged then
-		record.LastSaveFailed = true
-		record.UncertainReceipt = receipt.PurchaseId
-		task.delay(2, function()
-			if profiles[player] == record and record.Writable and not record.Leaving then
-				save(player, false)
-				stats(player)
-				if player.Parent then personal(player) end
+	local function roomRows()
+		if not currentRound then return lastRoom end
+		local entries = {}
+		for player, member in pairs(currentRound.Members) do
+			table.insert(entries, { UserId = player.UserId, Name = player.DisplayName, Alive = member.Alive,
+				CorrectThisMatch = member.CorrectThisMatch, LastChoiceAt = member.LastChoiceAt, Eligible = true })
+		end
+		return GameRules.rankRoom(entries)
+	end
+	local function personal(player, extra)
+		if not online(player) then return end
+		local payload = table.clone(state)
+		local session = sessions[player]
+		local member = currentRound and currentRound.Members[player]
+		payload.Mode = session and session.Mode or "LOBBY"
+		payload.Alive = member ~= nil and member.Alive == true
+		payload.SpectatorIds = {}
+		for _, competitor in ipairs(alivePlayers()) do table.insert(payload.SpectatorIds, competitor.UserId) end
+		payload.AliveCount, payload.ReadyCount = #payload.SpectatorIds, #readyPlayers()
+		payload.MyChoice = if payload.Mode == "GHOST" then session.GhostChoice else member and member.Choice
+		local question = currentRound and currentRound.Question
+		if question then
+			payload.CharacterId, payload.Choices = question.CharacterId, question.Choices
+			payload.ReferenceRGB = if state.Phase == "PREVIEW" then question.OriginalRGB else question.WrongRGB
+			if state.Phase == "REVEAL" or state.Phase == "TRAVEL" or state.Phase == "RESULTS" then
+				payload.CorrectLane = question.CorrectLane
 			end
-		end)
+		end
+		payload.Profile = profiles and profiles.public(player)
+		payload.Commerce = commerce and commerce.getCatalog(player) or {}
+		payload.RoomBoard, payload.GlobalBoards = roomRows(), boards.snapshot()
+		payload.LeaderboardStatus = payload.GlobalBoards.Status
+		if extra then for key, value in pairs(extra) do payload[key] = value end end
+		stateEvent:FireClient(player, payload)
+	end
+	local function broadcast()
+		for _, player in ipairs(Players:GetPlayers()) do personal(player) end
+	end
+	local function notify(player, message) personal(player, { Toast = message }) end
+	local function refreshCosmetics(player)
+		local record = profiles.get(player)
+		if record and player.Character then
+			local ok, message = pcall(Cosmetics.apply, player, record.Data, record.VIP)
+			if not ok then warn("Color Chaos cosméticos: " .. tostring(message)) end
+		end
+	end
+	profiles = Profiles.new({ Config = Config, Economy = Economy, Ledger = Ledger, Store = store,
+		Enabled = store ~= nil, SessionId = game.JobId .. HttpService:GenerateGUID(false),
+		Token = function() return HttpService:GenerateGUID(false) end, IsOnline = online, Notify = notify,
+		OnSaved = function(player, data) task.spawn(function() boards.publish(player, data) end) end })
+	commerce = Commerce.new({ Config = Config, MarketplaceService = MarketplaceService, Players = Players,
+		GetProfile = profiles.get, PersistentGrant = profiles.grantReceipt, Notify = notify,
+		Refresh = function(player) refreshCosmetics(player); personal(player) end })
+	commerce.start()
+
+	local function freeze(player, value)
+		local root = body(player)
+		if root then root.Anchored = value; root.AssemblyLinearVelocity = Vector3.zero; root.AssemblyAngularVelocity = Vector3.zero end
+	end
+	local function teleport(player, position)
+		local root = body(player)
+		if root and player.Character then
+			player.Character:PivotTo(CFrame.new(position))
+			root.AssemblyLinearVelocity, root.AssemblyAngularVelocity = Vector3.zero, Vector3.zero
+		end
+	end
+	local function stylePart(player, part)
+		if not part:IsA("BasePart") then return end
+		local ghost = sessions[player] and sessions[player].Mode == "GHOST"
+		part.CollisionGroup = ghost and "ColorChaosGhosts" or "ColorChaosPlayers"
+		local previous = part:GetAttribute("ColorChaosOriginalTransparency")
+		if ghost then
+			if previous == nil then part:SetAttribute("ColorChaosOriginalTransparency", part.Transparency) end
+			part.Transparency = math.max(part.Transparency, 0.55)
+		elseif previous ~= nil then
+			part.Transparency = previous
+			part:SetAttribute("ColorChaosOriginalTransparency", nil)
+		end
+	end
+	local function setMode(player, mode)
+		if not sessions[player] then return end
+		sessions[player].Mode = mode
+		player:SetAttribute("ColorChaosMode", mode)
+		if player.Character then for _, part in ipairs(player.Character:GetDescendants()) do stylePart(player, part) end end
+	end
+	local function toLobby(player)
+		freeze(player, false)
+		setMode(player, "LOBBY")
+		if sessions[player] then sessions[player].GhostChoice = nil end
+		teleport(player, Vector3.new(unpack(Settings.LobbyPosition)))
+	end
+	local function losePlayer(player, message)
+		local member = currentRound and currentRound.Members[player]
+		if member and member.Alive then
+			member.Alive = false
+			local record = profiles.get(player)
+			if record then Economy.fail(record.Data); profiles.markDirty(player) end
+		end
+		toLobby(player)
+		if message then notify(player, message) end
+	end
+	local function enterGhost(player)
+		local session, member = sessions[player], currentRound and currentRound.Members[player]
+		if not session or not currentRound or state.Phase == "RESULTS" or state.Phase == "LOBBY" then
+			notify(player, "La próxima partida comienza en el lobby."); return
+		end
+		if member and member.Alive then notify(player, "Sigues compitiendo. El modo fantasma es para espectadores."); return end
+		local root, humanoid = body(player)
+		if not root or not humanoid or humanoid.Health <= 0 then return end
+		setMode(player, "GHOST")
+		session.GhostChoice = nil
+		local coordinates = GameRules.stageCoordinates(state.Stage)
+		teleport(player, Vector3.new(0, Settings.AvatarY, coordinates.StartZ))
+		freeze(player, state.Phase == "PREVIEW")
+		notify(player, "Práctica fantasma: puedes elegir y avanzar, sin sumar puntos ni victorias.")
+	end
+	local function resetGates()
+		for barrier, original in pairs(gatePositions) do
+			barrier.CFrame, barrier.CanCollide, barrier.Transparency = original, true, 0.22
+		end
+	end
+	local function openGate(index, lane)
+		local barrier = gates[index][lane].Barrier
+		barrier.CanCollide = false
+		TweenService:Create(barrier, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ CFrame = gatePositions[barrier] + Vector3.new(0, 20, 0), Transparency = 0.68 }):Play()
+	end
+	local function countdown(phase, seconds, message)
+		state.Phase, state.Message = phase, message
+		local deadline, displayed = os.clock() + seconds, -1
+		repeat
+			state.Seconds = math.max(0, math.ceil(deadline - os.clock()))
+			if displayed ~= state.Seconds then displayed = state.Seconds; broadcast() end
+			task.wait(0.1)
+		until closing or os.clock() >= deadline
+	end
+	local bag = {}
+	local function nextCharacter()
+		if #bag == 0 then
+			for _, character in ipairs(Characters.All) do table.insert(bag, character) end
+			for index = #bag, 2, -1 do
+				local swap = random:NextInteger(1, index)
+				bag[index], bag[swap] = bag[swap], bag[index]
+			end
+		end
+		return table.remove(bag)
+	end
+	local function processChoice(player)
+		local round, session = currentRound, sessions[player]
+		if not round or not session or state.Phase ~= "CHOOSE" or round.FinalWinner then return end
+		local member = round.Members[player]
+		local competing = member and member.Alive
+		if not competing and session.Mode ~= "GHOST" then return end
+		if (competing and member.Choice) or (not competing and session.GhostChoice) then return end
+		local root, humanoid = body(player)
+		if not root or not humanoid or humanoid.Health <= 0 then return end
+		local chosen = GameRules.validChoice(root.Position, GameRules.stageCoordinates(state.Stage), os.clock() - round.StartedAt, Settings)
+		if not chosen then return end
+		if competing then
+			member.Choice, member.ChoiceAt = chosen, os.clock()
+			if state.Final and chosen == round.Question.CorrectLane then round.FinalWinner = player end
+		else session.GhostChoice = chosen end
+		freeze(player, true)
+		personal(player)
+	end
+	for index, laneGates in ipairs(gates) do
+		for _, gate in ipairs(laneGates) do
+			gate.ChoicePad.Touched:Connect(function(part)
+				if state.Stage ~= index or state.Phase ~= "CHOOSE" then return end
+				local model = part:FindFirstAncestorOfClass("Model")
+				local player = model and Players:GetPlayerFromCharacter(model)
+				if player then processChoice(player) end
+			end)
+		end
+	end
+	local function playStage(index)
+		local round = currentRound
+		state.Stage = index
+		state.Final = not round.Solo and ((#alivePlayers() == 2 and index >= Settings.FinalMinStage) or index == Settings.Stages)
+		round.Question, round.FinalWinner = GameRules.generateQuestion(nextCharacter(), random), nil
+		local coordinates, roster = GameRules.stageCoordinates(index), alivePlayers()
+		for slot, player in ipairs(roster) do
+			local member = round.Members[player]
+			member.Choice, member.ChoiceAt = nil, nil
+			Cosmetics.stopEmote(player)
+			-- Finalists share one starting point; player collisions are disabled.
+			local x = if state.Final then 0 else ((slot - 1) % 5 - 2) * 8
+			local z = coordinates.StartZ + (if state.Final then 0 else math.floor((slot - 1) / 5) * 3)
+			teleport(player, Vector3.new(x, Settings.AvatarY, z))
+			freeze(player, true)
+		end
+		for player, session in pairs(sessions) do
+			if session.Mode == "GHOST" then
+				session.GhostChoice = nil
+				teleport(player, Vector3.new(0, Settings.AvatarY, coordinates.StartZ))
+				freeze(player, true)
+			end
+		end
+		countdown("PREVIEW", Settings.PreviewSeconds, "MEMORIZA · este es el color original")
+		if closing then return end
+		state.Phase, state.Message = "CHOOSE", state.Final and "FINAL · llega primero a la puerta correcta" or "CORRE · elige un camino y confirma tu respuesta"
+		round.StartedAt = os.clock()
+		local deadline = round.StartedAt + (state.Final and Settings.FinalSeconds or Settings.RunSeconds)
+		for player, session in pairs(sessions) do if session.Mode ~= "LOBBY" then freeze(player, false) end end
+		local displayed = -1
+		repeat
+			local unchosen = 0
+			for _, player in ipairs(alivePlayers()) do
+				processChoice(player)
+				if not round.Members[player].Choice then unchosen += 1 end
+			end
+			for player, session in pairs(sessions) do if session.Mode == "GHOST" then processChoice(player) end end
+			state.Seconds = math.max(0, math.ceil(deadline - os.clock()))
+			if displayed ~= state.Seconds then displayed = state.Seconds; broadcast() end
+			if round.FinalWinner or unchosen == 0 then break end
+			task.wait(0.05)
+		until closing or os.clock() >= deadline
+		state.Phase = "REVEAL"
+		for _, player in ipairs(alivePlayers()) do
+			local member, record = round.Members[player], profiles.get(player)
+			if member.Choice == round.Question.CorrectLane then
+				member.CorrectThisMatch += 1
+				member.LastChoiceAt = member.ChoiceAt
+				if record then
+					local reward = Economy.correct(record.Data, os.time(), Config, record.PendingPaid)
+					profiles.markDirty(player)
+					notify(player, reward.FreeGifts > 0 and "¡Cinco aciertos seguidos! Tienes un regalo gratis en Regalos." or "¡Correcto! +8 monedas · +10 XP")
+				end
+				freeze(player, false)
+			else losePlayer(player, "Esta vez no acertaste. Puedes observar o practicar como fantasma.") end
+		end
+		for player, session in pairs(sessions) do
+			if session.Mode == "GHOST" then
+				freeze(player, false)
+				if session.GhostChoice then notify(player, session.GhostChoice == round.Question.CorrectLane
+					and "Fantasma: ¡acertaste! Práctica sin puntos." or "Fantasma: prueba de nuevo en el siguiente sector.") end
+			end
+		end
+		openGate(index, round.Question.CorrectLane)
+		local survivors = alivePlayers()
+		local ending = round.FinalWinner ~= nil or (#survivors == 1 and not round.Solo)
+		if ending then for _, player in ipairs(survivors) do freeze(player, true) end end
+		countdown("REVEAL", Settings.RevealSeconds, "La puerta " .. round.Question.CorrectLane .. " es la correcta")
+		if not ending and #alivePlayers() > 0 then countdown("TRAVEL", Settings.TravelSeconds, "AVANZA · cruza la puerta abierta hacia el siguiente sector") end
+	end
+	local function runMatch(roster)
+		matchCounter += 1
+		resetGates()
+		currentRound = { Members = {}, Solo = #roster == 1, StartedAt = 0 }
+		state.MatchId, state.Solo = matchCounter, currentRound.Solo
+		for _, player in ipairs(roster) do
+			currentRound.Members[player] = { Alive = true, CorrectThisMatch = 0 }
+			setMode(player, "ALIVE")
+		end
+		local winner
+		for index = 1, Settings.Stages do
+			if closing then break end
+			local survivors = alivePlayers()
+			if #survivors == 0 then break end
+			if #survivors == 1 and not currentRound.Solo then winner = survivors[1]; break end
+			playStage(index)
+			if currentRound.FinalWinner then winner = currentRound.FinalWinner; break end
+		end
+		local survivors = alivePlayers()
+		if not winner and not currentRound.Solo and #survivors == 1 then winner = survivors[1] end
+		local message = "Ronda terminada · vuelve a intentarlo en la próxima"
+		if winner and online(winner) and currentRound.Members[winner].Alive and not closing then
+			local record = profiles.get(winner)
+			if record then Economy.win(record.Data, os.time(), Config, record.PendingPaid); profiles.markDirty(winner) end
+			message = "¡" .. winner.DisplayName .. " gana! +60 monedas · +10 diamantes"
+		elseif currentRound.Solo then message = "Práctica terminada · conserva tus premios; las victorias requieren rivales" end
+		lastRoom = roomRows()
+		for player in pairs(sessions) do toLobby(player) end
+		-- Stop eligibility before results; late joins and ghosts never enter this roster.
+		for _, member in pairs(currentRound.Members) do member.Alive = false end
+		countdown("RESULTS", Settings.ResultSeconds, message)
+		currentRound = nil
+		state.Stage, state.Final, state.Solo = 0, false, false
+	end
+
+	local function limited(player, key, delay)
+		local bucket = lastActions[player]
+		if not bucket then bucket = {}; lastActions[player] = bucket end
+		if bucket[key] and os.clock() - bucket[key] < delay then return true end
+		bucket[key] = os.clock()
 		return false
 	end
-	return true, newlyGranted and ("Compra entregada: +" .. product.Coins .. " monedas.") or ""
-end
-
-commerce = Commerce.new({
-	Config = Config, Players = Players, MarketplaceService = MarketplaceService,
-	PersistentGrant = persistentGrant, GetProfile = function(player) return profiles[player] end,
-	Notify = function(player, message) if player.Parent then personal(player, { Toast = message }) end end,
-	Refresh = function(player) stats(player); cosmetic(player); if player.Parent then personal(player) end end,
-})
-commerce.start()
-
--- The release already contains this world, its floor and its neutral spawn.
--- Fallbacks keep source-only installs playable as well.
-local world = workspace:FindFirstChild("ColorChaosWorld")
-if not world then
-	world = Instance.new("Folder")
-	world.Name, world.Parent = "ColorChaosWorld", workspace
-end
-local function part(parent, name, size, position, color)
-	local p = Instance.new("Part")
-	p.Name, p.Size, p.Position = name, size, position
-	p.Anchored = true
-	p.CanCollide = true
-	p.Material = Enum.Material.SmoothPlastic
-	p.Color = color or Color3.fromRGB(35, 42, 67)
-	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
-	p.Parent = parent
-	return p
-end
-
-local function label(parent, text, offset, compact)
-	local old = parent:FindFirstChild("Caption")
-	if old then old:Destroy() end
-	local static = parent:FindFirstChild("StaticSign")
-	local panel = static and static:FindFirstChild("Panel")
-	local heading = panel and panel:FindFirstChild("Heading")
-	if heading then return heading end
-	local gui = Instance.new("BillboardGui")
-	gui.Name = "Caption"
-	gui.Size = compact and UDim2.fromOffset(110, 36) or UDim2.fromOffset(270, 75)
-	gui.StudsOffset = offset or Vector3.new(0, 4, 0)
-	gui.MaxDistance = 170
-	gui.AlwaysOnTop = false
-	gui.Parent = parent
-	local t = Instance.new("TextLabel")
-	t.Size = UDim2.fromScale(1, 1)
-	t.BackgroundColor3 = Color3.fromRGB(16, 22, 39)
-	t.BackgroundTransparency = 0.15
-	t.TextColor3 = Color3.new(1, 1, 1)
-	t.Font = Enum.Font.GothamBold
-	t.TextScaled, t.TextWrapped = true, true
-	t.Text = text
-	t.Parent = gui
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = t
-	return t
-end
-
-local lobby = world:FindFirstChild("Plaza del reactor") or part(world, "Plaza del reactor", Vector3.new(110, 3, 80), Vector3.new(0, 5, 145))
-lobby.Anchored, lobby.CanCollide = true, true
-local spawn = world:FindFirstChild("LobbySpawn")
-if not spawn then
-	spawn = Instance.new("SpawnLocation")
-	spawn.Name = "LobbySpawn"
-	spawn.Size, spawn.Position = Vector3.new(10, 1, 10), Vector3.new(0, 7, 153)
-	spawn.Parent = world
-end
-spawn.Anchored, spawn.Neutral, spawn.CanCollide = true, true, true
-spawn.Color, spawn.Duration = Config.Colors[1].Color, 0
-label(world:FindFirstChild("Título") or part(world, "Título", Vector3.new(1, 1, 1), Vector3.new(0, 17, 168)), "COLOR CHAOS\nRepara el reactor antes de que suba la lava")
-local instructions = world:FindFirstChild("Instrucciones") or part(world, "Instrucciones", Vector3.new(1, 1, 1), Vector3.new(-27, 9, 144))
-label(instructions, "1. Espera aquí, estás a salvo\n2. Repara para elevar al equipo\n3. Evita la lava y gana monedas")
-local shop = world:FindFirstChild("Tienda de auras") or part(world, "Tienda de auras", Vector3.new(8, 4, 8), Vector3.new(27, 8, 144), Config.Palettes[4].Color)
-label(shop, "TIENDA\nAuras, monedas y VIP")
-local shopPrompt = Instance.new("ProximityPrompt")
-shopPrompt.ActionText, shopPrompt.ObjectText = "Abrir", "Auras"
-shopPrompt.RequiresLineOfSight = false
-shopPrompt.MaxActivationDistance = Config.InteractionDistance
-shopPrompt.Parent = shop
-shopPrompt.Triggered:Connect(function(player) personal(player, { OpenShop = true }) end)
-local lava = world:FindFirstChild("LavaSurface") or part(world, "LavaSurface", Vector3.new(160, 0.8, 176), Vector3.new(0, 9.6, -22), Color3.fromRGB(255, 91, 30))
-lava.Anchored, lava.CanCollide, lava.Material = true, false, Enum.Material.Neon
-lava.Size = Vector3.new(lavaSettings.HalfWidth * 2, lava.Size.Y, lavaSettings.MaxZ - lavaSettings.MinZ)
-local function setLava(height)
-	lava.Position = Vector3.new(0, height - lava.Size.Y / 2, (lavaSettings.MinZ + lavaSettings.MaxZ) / 2)
-	state.LavaHeight = height
-end
-setLava(lavaSettings.StartHeight)
-local previewParts = {}
-local previewLabels = {}
-local preview = world:FindFirstChild("ArenaPreview")
-if preview then
-	for _, object in ipairs(preview:GetDescendants()) do
-		if object:IsA("BasePart") then table.insert(previewParts, { Part = object, Transparency = object.Transparency }) end
-		if object:IsA("BillboardGui") then table.insert(previewLabels, object) end
-	end
-end
-local function showPreview(visible)
-	for _, item in ipairs(previewParts) do item.Part.Transparency = visible and item.Transparency or 1 end
-	for _, gui in ipairs(previewLabels) do gui.Enabled = visible end
-end
-workspace.FallenPartsDestroyHeight = -60
-
-local function root(player)
-	return player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-end
-
-local function teleport(player, position)
-	local r = root(player)
-	if r then
-		r.AssemblyLinearVelocity = Vector3.zero
-		r.AssemblyAngularVelocity = Vector3.zero
-		player.Character:PivotTo(CFrame.new(position))
-	end
-end
-
-local function arenaPosition(round, position)
-	return Vector3.new(position.X, position.Y + round.Elevation, position.Z)
-end
-
-local function liftArena(round)
-	-- Only new high-water progress raises the arena. Replaying an already solved
-	-- memory prefix cannot farm extra height, and a mistake cannot drop teammates.
-	round.HighestProgress = math.max(round.HighestProgress, round.Progress)
-	local elevation = lavaSettings.MaxLift * math.min(1, round.HighestProgress / round.Total)
-	local delta = elevation - round.Elevation
-	if delta <= 0 then return end
-	round.Elevation = elevation
-	for _, object in ipairs(round.Model:GetDescendants()) do
-		if object:IsA("BasePart") then
-			local p = object.Position
-			object.Position = Vector3.new(p.X, p.Y + delta, p.Z)
+	local function validId(value) return type(value) == "string" and #value > 0 and #value <= 80 end
+	actionEvent.OnServerEvent:Connect(function(player, action, payload)
+		if not online(player) or type(action) ~= "string" or #action > 40 or limited(player, "Any", 0.12) then return end
+		if action == "Sync" then if not limited(player, "Sync", 0.5) then personal(player) end; return end
+		local record = profiles.get(player)
+		if not record or closing then return end
+		if action == "EnterGhost" then enterGhost(player); return end
+		if action == "LeaveGhost" then
+			if sessions[player] and sessions[player].Mode == "GHOST" then toLobby(player); personal(player) end
+			return
 		end
-	end
-	for player, entry in pairs(participants) do
-		local r = root(player)
-		if entry.Alive and r then
-			local p = r.Position
-			teleport(player, Vector3.new(p.X, p.Y + delta, p.Z))
+		if action == "Purchase" then
+			if type(payload) == "table" then commerce.requestPurchase(player, payload.Kind, payload.Key) end
+			return
 		end
-	end
-	state.PlatformLift = elevation
-end
-
-local function valid(player, target, round)
-	local entry, r = participants[player], root(player)
-	if currentRound ~= round or round.Success or state.Phase ~= "JUEGO" or not entry or not entry.Alive or not r then return false end
-	local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-	if not humanoid or humanoid.Health <= 0 or (r.Position - target.Position).Magnitude > Config.InteractionDistance + 2 then return false end
-	local now = os.clock()
-	if now - entry.LastInteraction < 0.25 then return false end
-	entry.LastInteraction = now
-	return true
-end
-
-local function prompt(target, text, callback)
-	local p = Instance.new("ProximityPrompt")
-	p.ActionText, p.ObjectText = text, target.Name
-	p.HoldDuration = 0.25
-	p.MaxActivationDistance = Config.InteractionDistance
-	p.RequiresLineOfSight = false
-	p.Parent = target
-	p.Triggered:Connect(callback)
-	return p
-end
-
-local function progress(round, amount)
-	round.Progress += amount
-	liftArena(round)
-	state.Progress = round.Progress
-	if round.Progress >= round.Total then round.Success = true end
-	broadcast()
-end
-
-local function contribute(player)
-	local entry = participants[player]
-	entry.Contributed = true
-	entry.Actions = (entry.Actions or 0) + 1
-end
-
-local function freeCoins(record, amount)
-	-- A pending paid grant reserves capacity; never reduce an existing balance.
-	local room = math.max(0, Config.MaxCoins - (record.PendingPaid or 0) - record.Data.Coins)
-	local granted = math.min(amount, room)
-	record.Data.Coins += granted
-	return granted
-end
-
-local function newArena(mode)
-	local model = Instance.new("Model")
-	model.Name = "Ronda"
-	model.Parent = world
-	local round = { Model = model, Mode = mode.Id, Progress = 0, Total = 6, Success = false, Elevation = 0, HighestProgress = 0 }
-	currentRound = round
-	if mode.Id == "memory" then
-		part(model, "Inicio", Vector3.new(38, 3, 26), Vector3.new(0, 20, 37))
-	else
-		part(model, "Arena", Vector3.new(92, 3, 92), Vector3.new(0, 20, 0))
-		for _, pos in ipairs({ Vector3.new(0, 23, 46), Vector3.new(0, 23, -46) }) do
-			part(model, "Baranda", Vector3.new(94, 3, 1), pos)
+		if action == "Emote" or action == "Reaction" then
+			local kind = action
+			local id = validId(payload) and payload or record.Data.Equipped[kind]
+			local item = Catalog.ById[id]
+			if not item or item.Kind ~= kind or not (record.Data.CosmeticsOwned[id] or (item.Access == "VIP" and record.VIP)) then return end
+			if limited(player, kind, kind == "Emote" and 3 or 2) then return end
+			if kind == "Emote" then
+				if sessions[player].Mode == "ALIVE" and (state.Phase == "PREVIEW" or state.Phase == "CHOOSE") then
+					notify(player, "Los emotes vuelven al terminar la elección."); return
+				end
+				Cosmetics.playEmote(player, item.Style)
+			else Cosmetics.playReaction(player, item.Id) end
+			return
 		end
-		for _, pos in ipairs({ Vector3.new(46, 23, 0), Vector3.new(-46, 23, 0) }) do
-			part(model, "Baranda", Vector3.new(1, 3, 92), pos)
+		local callback
+		if action == "BuyCosmetic" and validId(payload) then
+			callback = function(data) return Economy.purchase(data, payload, record.VIP) end
+		elseif action == "EquipCosmetic" then
+			local id = type(payload) == "table" and payload.Id or payload
+			if validId(id) then callback = function(data) return Economy.equip(data, id, record.VIP) end end
+		elseif action == "ClaimTimeGift" and validId(payload) then
+			callback = function(data) return Economy.claimTimeGift(data, payload, os.time(), Config, record.PendingPaid) end
+		elseif action == "OpenGift" and not limited(player, "Gift", 1) then
+			local roll, itemRoll, boundary = random:NextInteger(1, 100), 1, 0
+			for _, odds in ipairs(Economy.GiftOdds) do
+				boundary += odds.Chance
+				if roll <= boundary then
+					local pool = Catalog.RewardPools[odds.Kind]
+					if pool then itemRoll = random:NextInteger(1, #pool) end
+					break
+				end
+			end
+			callback = function(data) return Economy.openGift(data, roll, itemRoll, Config, record.PendingPaid) end
+		elseif action == "Palette" and type(payload) == "number" and payload == payload and payload % 1 == 0 then
+			callback = function(data) return Rules.purchase(data, payload, Config.Palettes, record.VIP) end
 		end
-	end
-	return round
-end
-
-local function outlinePlatform(parent, platform, color)
-	-- Mark the actual walkable edges above the lava; all trim rises with the arena.
-	local p, s = platform.Position, platform.Size
-	for i, edge in ipairs({
-		{ Size = Vector3.new(s.X, 0.16, 0.2), Position = Vector3.new(p.X, p.Y + s.Y / 2 + 0.1, p.Z - s.Z / 2 + 0.15) },
-		{ Size = Vector3.new(s.X, 0.16, 0.2), Position = Vector3.new(p.X, p.Y + s.Y / 2 + 0.1, p.Z + s.Z / 2 - 0.15) },
-		{ Size = Vector3.new(0.2, 0.16, s.Z), Position = Vector3.new(p.X - s.X / 2 + 0.15, p.Y + s.Y / 2 + 0.1, p.Z) },
-		{ Size = Vector3.new(0.2, 0.16, s.Z), Position = Vector3.new(p.X + s.X / 2 - 0.15, p.Y + s.Y / 2 + 0.1, p.Z) },
-	}) do
-		local trim = part(parent, platform.Name .. " · borde " .. i, edge.Size, edge.Position, color)
-		trim.Material, trim.CanCollide, trim.CanTouch, trim.CanQuery = Enum.Material.Neon, false, false, false
-	end
-end
-
-local function memory(round)
-	round.Total = 5
-	round.Sequence, round.Bridges = {}, {}
-	for i = 1, round.Total do round.Sequence[i] = random:NextInteger(1, 4) end
-	local goal = part(round.Model, "Reactor de llegada", Vector3.new(28, 3, 16), Vector3.new(0, 20, -47), Config.Colors[3].Color)
-	outlinePlatform(round.Model, round.Model:FindFirstChild("Inicio"), Config.Colors[1].Color)
-	outlinePlatform(round.Model, goal, Config.Colors[3].Color)
-	label(goal, "ACTIVA LOS PUENTES\nLuego llega aquí")
-	local goalPrompt = prompt(goal, "Reparar reactor", function(player)
-		if not valid(player, goal, round) then return end
-		if round.Step == #round.Sequence then
-			contribute(player)
-			progress(round, 1)
+		if callback then
+			local ok, message, reward = profiles.mutate(player, callback)
+			if ok and (action == "BuyCosmetic" or action == "EquipCosmetic" or action == "Palette") then refreshCosmetics(player) end
+			personal(player, { Toast = message or (ok and "Listo." or "No se pudo realizar la acción."), GiftResult = reward })
 		end
 	end)
-	goalPrompt.Enabled = false
-	round.Step = 0
-	for i, color in ipairs(Config.Colors) do
-		local button = part(round.Model, color.Name, Vector3.new(5, 2, 5), Vector3.new(-13.5 + (i - 1) * 9, 23, 41), color.Color)
-		label(button, color.Symbol .. " · " .. color.Name, Vector3.new(0, 3, 0), true)
-		prompt(button, "Activar", function(player)
-			if not valid(player, button, round) or round.Replaying or round.Step >= #round.Sequence then return end
-			if round.Sequence[round.Step + 1] ~= i then
-				round.Replaying = true
-				state.Message = "Secuencia incorrecta. ¡Vuelve a observar!"
-				for _, bridge in ipairs(round.Bridges) do bridge:Destroy() end
-				round.Bridges = {}
-				round.Step, round.Progress, state.Progress = 0, 0, 0
-				goalPrompt.Enabled = false
-				for teammate, entry in pairs(participants) do
-					if entry.Alive then teleport(teammate, arenaPosition(round, Vector3.new(random:NextInteger(-10, 10), 25, 34))) end
-				end
-				task.spawn(function()
-					for step, code in ipairs(round.Sequence) do
-						if currentRound ~= round or state.Phase ~= "JUEGO" then return end
-						state.DemoCode, state.DemoStep = code, step; broadcast(); task.wait(1)
-						if currentRound ~= round or state.Phase ~= "JUEGO" then return end
-						state.DemoCode = nil; broadcast(); task.wait(0.2)
-					end
-					if currentRound ~= round or state.Phase ~= "JUEGO" then return end
-					state.DemoCode = nil
-					state.DemoStep = nil
-					state.Message = "Activa la secuencia en orden. Después cruza al reactor."
-					round.Replaying = false; broadcast()
-				end)
-			else
-				contribute(player)
-				round.Step += 1
-				local bridge = part(round.Model, "Puente " .. round.Step, Vector3.new(18, 2, 12), arenaPosition(round, Vector3.new(0, 20.5, 23 - (round.Step - 1) * 13)), color.Color)
-				-- Keep trim under the bridge so replay destroys both together.
-				outlinePlatform(bridge, bridge, Color3.fromRGB(235, 246, 255))
-				table.insert(round.Bridges, bridge)
-				progress(round, 1)
-				goalPrompt.Enabled = round.Step == #round.Sequence
-			end
+	local function prompt(name, label, action)
+		local anchor = world:FindFirstChild(name)
+		if not anchor or not anchor:IsA("BasePart") then return end
+		local proximity = Instance.new("ProximityPrompt")
+		proximity.Name, proximity.ActionText, proximity.ObjectText = "CiudadPrismaPrompt", label, "Ciudad Prisma"
+		proximity.MaxActivationDistance, proximity.HoldDuration, proximity.RequiresLineOfSight = 14, 0, false
+		proximity.Parent = anchor
+		proximity.Triggered:Connect(function(player)
+			if action == "Ghost" then
+				if sessions[player] and sessions[player].Mode == "GHOST" then toLobby(player); personal(player) else enterGhost(player) end
+			else personal(player, { OpenWindow = action }) end
 		end)
 	end
-	-- Five bridges plus activating the reactor completes this objective.
-	round.Total += 1
-end
-
-local function relay(round)
-	round.Total = 8
-	round.Target = random:NextInteger(1, 4)
-	state.Target = round.Target
-	outlinePlatform(round.Model, round.Model:FindFirstChild("Arena"), Config.Colors[1].Color)
-	local positions = { Vector3.new(-30, 24, -28), Vector3.new(30, 24, -28), Vector3.new(-30, 24, 24), Vector3.new(30, 24, 24) }
-	local core = part(round.Model, "Reactor", Vector3.new(8, 10, 8), Vector3.new(0, 27, 0), Config.Colors[1].Color)
-	core.Material = Enum.Material.Neon
-	label(core, "REPARACIÓN COOPERATIVA\nActiva la estación indicada")
-	for i, color in ipairs(Config.Colors) do
-		local node = part(round.Model, color.Name, Vector3.new(8, 5, 8), positions[i], color.Color)
-		label(node, color.Symbol .. " · " .. color.Name, Vector3.new(0, 5, 0), true)
-		prompt(node, "Reparar", function(player)
-			if not valid(player, node, round) or round.Cooldown then return end
-			if i ~= round.Target then
-				personal(player, { Toast = "Busca la letra indicada en la parte superior." })
-				return
-			end
-			round.Cooldown = true
-			contribute(player)
-			core.Color = color.Color
-			progress(round, 1)
-			local nextTarget = random:NextInteger(1, 3)
-			if nextTarget >= round.Target then nextTarget += 1 end
-			round.Target, state.Target = nextTarget, nextTarget
-			broadcast()
-			task.delay(1.2, function() if currentRound == round then round.Cooldown = false end end)
-		end)
-	end
-end
-
-local function rescue(round)
-	round.Total = 4
-	round.Target = random:NextInteger(1, 4)
-	round.Carrier, round.Active = nil, false
-	state.Target = round.Target
-	outlinePlatform(round.Model, round.Model:FindFirstChild("Arena"), Config.Colors[3].Color)
-	-- The central floor stops at z=-46. Islands sit across the gap.
-	local core = part(round.Model, "Reactor receptor", Vector3.new(9, 5, 9), Vector3.new(0, 24, 12), Color3.fromRGB(230, 235, 255))
-	label(core, "ENTREGA LA CHISPA AQUÍ")
-	local islands = {}
-	for i, color in ipairs(Config.Colors) do
-		local x = -33 + (i - 1) * 22
-		local island = part(round.Model, "Isla " .. color.Name, Vector3.new(16, 3, 16), Vector3.new(x, 20, -75), color.Color)
-		outlinePlatform(round.Model, island, color.Color)
-		label(island, color.Symbol .. " · " .. color.Name, Vector3.new(0, 4, 0), true)
-		local spark = part(round.Model, "Chispa " .. color.Name, Vector3.new(3, 3, 3), Vector3.new(x, 25, -75), color.Color)
-		spark.Shape, spark.Material = Enum.PartType.Ball, Enum.Material.Neon
-		spark.CanCollide = false
-		islands[i] = { Spark = spark }
-		prompt(spark, "Recoger chispa", function(player)
-			if not valid(player, spark, round) or not round.Active or round.Target ~= i or round.Carrier then return end
-			round.Carrier = player
-			contribute(player)
-			spark.Transparency = 1
-			local indicator = Instance.new("BillboardGui")
-			indicator.Name, indicator.Size = "CarriedSpark", UDim2.fromOffset(120, 40)
-			indicator.StudsOffset = Vector3.new(0, 5, 0)
-			indicator.AlwaysOnTop = true
-			indicator.Parent = root(player)
-			local text = Instance.new("TextLabel")
-			text.Size, text.BackgroundTransparency = UDim2.fromScale(1, 1), 1
-			text.Text, text.TextColor3 = "✦ CHISPA", color.Color
-			text.TextScaled, text.Font = true, Enum.Font.GothamBold
-			text.Parent = indicator
-			state.Message = player.DisplayName .. " lleva la chispa. ¡Debe volver al reactor!"
-			broadcast()
-		end)
-		local node = part(round.Model, "Panel " .. color.Name, Vector3.new(5, 3, 5), Vector3.new(x, 23, -32), color.Color)
-		label(node, color.Symbol .. " · " .. color.Name, Vector3.new(0, 3, 0), true)
-		prompt(node, "Crear puente", function(player)
-			if not valid(player, node, round) or round.Active or round.Target ~= i then return end
-			contribute(player)
-			round.Active = true
-			round.Bridge = part(round.Model, "Puente de rescate", Vector3.new(12, 2, 31), arenaPosition(round, Vector3.new(x, 20.5, -55)), color.Color)
-			outlinePlatform(round.Bridge, round.Bridge, Color3.fromRGB(235, 246, 255))
-			state.Message = "Puente listo. Recoge la chispa " .. color.Symbol .. " y vuelve al reactor."
-			broadcast()
-		end)
-	end
-	round.ResetCarrier = function()
-		if round.Carrier then
-			local r = root(round.Carrier)
-			local indicator = r and r:FindFirstChild("CarriedSpark")
-			if indicator then indicator:Destroy() end
+	prompt("ShopStand", "Abrir tienda", "Shop")
+	prompt("GiftStand", "Ver regalos gratis", "Gifts")
+	prompt("GhostPortal", "Practicar como fantasma", "Ghost")
+	prompt("GlobalBoard", "Clasificación global", "Leaderboards")
+	prompt("RoomBoard", "Clasificación de la sala", "Leaderboards")
+	local function updateWorldBoard(name, heading, rows, valueKey, empty)
+		local anchor = world:FindFirstChild(name)
+		local sign = anchor and anchor:FindFirstChild("StaticSign")
+		local panel = sign and sign:FindFirstChild("Panel")
+		if not panel then return end
+		local title, content = panel:FindFirstChild("Heading"), panel:FindFirstChild("Body")
+		if not title or not content then return end
+		sign.Size = UDim2.fromScale(34, 22)
+		title.Text = heading
+		local lines = {}
+		for index, row in ipairs(rows) do
+			if index > 8 then break end
+			table.insert(lines, string.format("%d. %s  ·  %d", index, row.Name or "Jugador", row[valueKey] or 0))
 		end
-		round.Carrier = nil
-		islands[round.Target].Spark.Transparency = 0
+		content.Text = #lines > 0 and table.concat(lines, "\n") or empty
 	end
-	prompt(core, "Entregar chispa", function(player)
-		if not valid(player, core, round) or round.Carrier ~= player then return end
-		contribute(player)
-		round.ResetCarrier()
-		progress(round, 1)
-		if round.Bridge then round.Bridge:Destroy() end
-		round.Active = false
-		local nextTarget = random:NextInteger(1, 3)
-		if nextTarget >= round.Target then nextTarget += 1 end
-		round.Target, state.Target = nextTarget, nextTarget
-		-- Bring teammates off the old island before removing their route.
-		for teammate, entry in pairs(participants) do
-			if entry.Alive then teleport(teammate, arenaPosition(round, Vector3.new(random:NextInteger(-10, 10), 25, 28))) end
+	local function updateBoards()
+		local global = boards.snapshot()
+		local metric = ({ "Wins", "Streak", "Level" })[math.floor(os.clock() / 10) % 3 + 1]
+		local title = ({ Wins = "VICTORIAS", Streak = "MEJOR RACHA", Level = "NIVEL" })[metric]
+		updateWorldBoard("GlobalBoard", "GLOBAL · " .. title, global[metric], "Value", global.Status .. "\nAún no hay resultados guardados.")
+		updateWorldBoard("RoomBoard", "SALA · ACIERTOS EN ESTA PARTIDA", roomRows(), "CorrectThisMatch", "Tu próxima aventura comienza aquí.")
+	end
+	local function updatePlayerStats(player)
+		local record = profiles.get(player)
+		if not record then return end
+		local folder = player:FindFirstChild("leaderstats")
+		if not folder then folder = Instance.new("Folder"); folder.Name, folder.Parent = "leaderstats", player end
+		local values = { Victorias = record.Data.Wins, Racha = record.Data.CurrentStreak,
+			Nivel = math.min(1000, math.floor(record.Data.Progress.XP / 100) + 1) }
+		for name, value in pairs(values) do
+			local stat = folder:FindFirstChild(name)
+			if not stat then stat = Instance.new("IntValue"); stat.Name, stat.Parent = name, folder end
+			stat.Value = value
 		end
-		state.Message = "¡Chispa entregada! Activa el siguiente puente."
-		broadcast()
+	end
+
+	local function characterAdded(player, character)
+		local root = character:WaitForChild("HumanoidRootPart", 10)
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if not root or not humanoid or not online(player) or player.Character ~= character then return end
+		local member = currentRound and currentRound.Members[player]
+		if member and member.Alive then losePlayer(player) else toLobby(player) end
+		character.DescendantAdded:Connect(function(part) stylePart(player, part) end)
+		humanoid.Died:Connect(function()
+			if player.Character == character then losePlayer(player, "Regresa al lobby; podrás practicar como fantasma.") end
+		end)
+		refreshCosmetics(player)
+		personal(player)
+	end
+	local function playerAdded(player)
+		if initializing[player] or sessions[player] then return end
+		initializing[player], sessions[player] = true, { Mode = "LOBBY" }
+		player.RespawnLocation = spawn
+		player:SetAttribute("ColorChaosMode", "LOBBY")
+		player.CharacterAdded:Connect(function(character) characterAdded(player, character) end)
+		if player.Character then task.spawn(characterAdded, player, player.Character) end
+		local record = profiles.load(player)
+		initializing[player] = nil
+		if not record or not online(player) then return end
+		refreshCosmetics(player)
+		updatePlayerStats(player)
+		personal(player, { Toast = currentRound and "La partida ya empezó. Puedes observar o entrar como fantasma." or "Bienvenido. Memoriza el color, elige tu puerta y avanza." })
+		task.spawn(function() commerce.refreshPasses(player) end)
+	end
+	Players.PlayerAdded:Connect(playerAdded)
+	Players.PlayerRemoving:Connect(function(player)
+		local member = currentRound and currentRound.Members[player]
+		if member and member.Alive then
+			member.Alive = false
+			local record = profiles.get(player)
+			if record then Economy.fail(record.Data); profiles.markDirty(player) end
+		end
+		sessions[player], initializing[player], lastActions[player] = nil, nil, nil
+		Cosmetics.cleanup(player)
+		profiles.remove(player)
 	end)
-end
+	for _, player in ipairs(Players:GetPlayers()) do task.spawn(playerAdded, player) end
+	game:BindToClose(function() closing = true; profiles.close() end)
 
-local function eliminate(player)
-	local entry = participants[player]
-	if entry and entry.Alive then
-		entry.Alive = false
-		local r = root(player)
-		if r then r.Anchored = false end
-		if currentRound and currentRound.Carrier == player then
-			currentRound.ResetCarrier()
-			state.Message = "La chispa volvió a su isla. Otro jugador puede recogerla."
-		end
-		personal(player, { Toast = "Vuelve a la plaza. Entrarás en la siguiente ronda." })
-	end
-end
-
-local function onCharacter(player, character)
-	local humanoid = character:WaitForChild("Humanoid", 10)
-	local r = character:WaitForChild("HumanoidRootPart", 10)
-	if not humanoid or not r then return end
-	-- A new character always starts in the lobby; never re-enter an active round.
-	eliminate(player)
-	teleport(player, Vector3.new(random:NextInteger(-8, 8), 11, 153))
-	cosmetic(player)
-	humanoid.Died:Connect(function() eliminate(player) end)
-end
-
-local function onPlayer(player)
-	if initializing[player] or profiles[player] then return end
-	initializing[player] = true
-	player.RespawnLocation = spawn
-	player.CharacterAdded:Connect(function(character) onCharacter(player, character) end)
-	if player.Character then task.spawn(onCharacter, player, player.Character) end
-	local data = cleanProfile(nil)
-	local writable = false
-	if savingEnabled then
-		local acquired, loaded = false, nil
-		for attempt = 1, 3 do
-			local ok = pcall(function()
-				store:UpdateAsync("Player_" .. player.UserId, function(old)
-					acquired, loaded = false, nil
-					if type(old) == "table" and old.Session and old.Session ~= sessionId and (tonumber(old.LeaseUntil) or 0) > os.time() then return nil end
-					loaded = cleanProfile(type(old) == "table" and (old.Data or old) or nil)
-					acquired = true
-					return { Data = snapshot(loaded), Session = sessionId, LeaseUntil = os.time() + 240 }
-				end)
-			end)
-			if ok and acquired then data, writable = loaded, true; break end
-			if attempt < 3 then task.wait(attempt * 2) end
-		end
-	end
-	profiles[player] = { Data = data, Writable = writable, Saving = false, Revision = 0, SavedRevision = 0 }
-	initializing[player] = nil
-	if not player.Parent then save(player, true); profiles[player] = nil; return end
-	local leaderboard = Instance.new("Folder")
-	leaderboard.Name, leaderboard.Parent = "leaderstats", player
-	for _, name in ipairs({ "Monedas", "Victorias" }) do
-		local value = Instance.new("IntValue")
-		value.Name, value.Parent = name, leaderboard
-	end
-	stats(player); cosmetic(player); personal(player)
-	task.spawn(function() commerce.refreshPasses(player); if player.Parent then personal(player) end end)
-end
-
--- Monitor preparation as well as play. Recover falls by returning to the safe
--- lobby rather than leaving an avatar falling until Roblox destroys it.
-task.spawn(function()
-	while not closing do
-		task.wait(0.1)
-		local round = currentRound
-		if round and state.Phase == "JUEGO" and not round.Success then
-			local fraction = math.clamp((os.clock() - round.StartedAt) / Config.RoundSeconds, 0, 1)
-			setLava(lavaSettings.StartHeight + (lavaSettings.EndHeight - lavaSettings.StartHeight) * fraction)
-		end
-		for _, player in ipairs(Players:GetPlayers()) do
-			local r = root(player)
-			local entry = participants[player]
-			if entry and entry.Alive and round and (state.Phase == "PREPARACIÓN" or state.Phase == "JUEGO") then
-				local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-				local inLava = r and math.abs(r.Position.X) <= lavaSettings.HalfWidth and r.Position.Z >= lavaSettings.MinZ and r.Position.Z <= lavaSettings.MaxZ
-				local footOffset = humanoid and ((humanoid.HipHeight or 2) + (r and r.Size and r.Size.Y or 2) / 2) or 3
-				if humanoid and humanoid.RigType == Enum.HumanoidRigType.R6 then
-					local leg = player.Character:FindFirstChild("Left Leg")
-					footOffset += leg and leg.Size.Y or 2
+	-- A fall can never trap a player in an endless death/void cycle.
+	task.spawn(function()
+		while not closing do
+			for player, session in pairs(sessions) do
+				local root, humanoid = body(player)
+				if root and humanoid and humanoid.Health > 0 and root.Position.Y < 0 then
+					if session.Mode == "ALIVE" then losePlayer(player, "Caíste del recorrido. Puedes seguir como fantasma.")
+					elseif session.Mode == "GHOST" and currentRound then
+						freeze(player, false)
+						teleport(player, Vector3.new(0, Settings.AvatarY, GameRules.stageCoordinates(math.max(1, state.Stage)).StartZ))
+					else toLobby(player) end
 				end
-				if not r or not humanoid or humanoid.Health <= 0 or r.Position.Y < 5 or (inLava and r.Position.Y - footOffset <= (state.LavaHeight or lavaSettings.StartHeight)) then
-					eliminate(player)
-					teleport(player, Vector3.new(0, 11, 153))
-				end
-			elseif r and r.Position.Y < 0 then
-				-- Lobby visitors and eliminated players are never part of lava checks.
-				teleport(player, Vector3.new(0, 11, 153))
+			end
+			task.wait(0.2)
+		end
+	end)
+	task.spawn(function()
+		local previous, lastSave, lastBoard = os.clock(), os.clock(), -math.huge
+		while not closing do
+			task.wait(1)
+			local now = os.clock()
+			for _, player in ipairs(Players:GetPlayers()) do
+				local record = profiles.get(player)
+				if record and Economy.advanceTime(record.Data, now - previous, os.time()) > 0 then profiles.markDirty(player) end
+				updatePlayerStats(player)
+			end
+			updateBoards()
+			previous = now
+			if now - lastSave >= Settings.SaveInterval then
+				lastSave = now
+				for _, player in ipairs(Players:GetPlayers()) do task.spawn(function() profiles.save(player, false) end) end
+			end
+			if now - lastBoard >= Settings.LeaderboardInterval then
+				lastBoard = now
+				task.spawn(function() boards.refresh() end)
 			end
 		end
-	end
-end)
-
-Players.PlayerAdded:Connect(onPlayer)
-for _, player in ipairs(Players:GetPlayers()) do task.spawn(onPlayer, player) end
-Players.PlayerRemoving:Connect(function(player)
-	if profiles[player] then profiles[player].Leaving = true end
-	eliminate(player)
-	participants[player] = nil
-	save(player, true)
-	profiles[player], lastActions[player] = nil, nil
-end)
-
-actionEvent.OnServerEvent:Connect(function(player, action, value)
-	local now = os.clock()
-	if now - (lastActions[player] or 0) < 0.3 then return end
-	lastActions[player] = now
-	if action == "Sync" then personal(player); return end
-	local record = profiles[player]
-	if not record or record.Leaving then return end
-	if action == "Purchase" then
-		if type(value) == "table" then commerce.requestPurchase(player, value.Kind, value.Key) end
-		return
-	end
-	if record.Saving then personal(player, { Toast = "Un momento: estamos guardando tu progreso." }); return end
-	if action == "ClaimMission" then
-		for _, mission in ipairs(Config.DailyMissions) do
-			if mission.Key == value and record.Data.Coins + (record.PendingPaid or 0) + mission.Reward > Config.MaxCoins then
-				personal(player, { Toast = "Gasta algunas monedas antes de reclamar esta recompensa." }); return
-			end
-		end
-		local reward, message = Progression.claim(record.Data.Progress, value, os.time(), Config)
-		if reward > 0 then
-			freeCoins(record, reward)
-			record.Revision += 1
-			stats(player)
-		end
-		personal(player, { Toast = message }); return
-	end
-	if action ~= "Palette" then return end
-	local ok, message = Rules.purchase(record.Data, value, Config.Palettes, record.VIP)
-	if ok then
-		record.Revision += 1
-		stats(player); cosmetic(player)
-	end
-	personal(player, { Toast = message })
-end)
-
-task.spawn(function()
+	end)
+	workspace:SetAttribute("ColorChaosBootStatus", "READY")
 	while not closing do
-		task.wait(Config.SaveInterval)
-		for player, record in pairs(profiles) do
-			if record.Writable then task.spawn(save, player, false) end
-		end
-	end
-end)
-
-game:BindToClose(function()
-	closing = true
-	local pending = 0
-	for player in pairs(profiles) do
-		pending += 1
-		task.spawn(function() save(player, true); pending -= 1 end)
-	end
-	local deadline = os.clock() + 25
-	while pending > 0 and os.clock() < deadline do task.wait(0.1) end
-end)
-
-local modeIndex = 0
-while not closing do
-	participants = {}
-	state = { Phase = "LOBBY", Message = "Estás a salvo en el lobby. La siguiente ronda comienza pronto.", Progress = 0, Total = 0 }
-	setLava(lavaSettings.StartHeight)
-	showPreview(true)
-	for remaining = Config.Intermission, 1, -1 do
-		state.Seconds = remaining; broadcast(); task.wait(1)
-	end
-	local ready = {}
-	for _, player in ipairs(Players:GetPlayers()) do
-		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-		if profiles[player] and humanoid and humanoid.Health > 0 and root(player) then table.insert(ready, player) end
-	end
-	if #ready < Config.MinimumPlayers then
-		state.Message = "Esperando jugadores listos..."; broadcast(); task.wait(2)
-		continue
-	end
-	modeIndex = modeIndex % #Config.Modes + 1
-	local mode = Config.Modes[modeIndex]
-	local round = newArena(mode)
-	showPreview(false)
-	state = { Phase = "PREPARACIÓN", Mode = mode.Name, Message = mode.Hint, Progress = 0, Total = 0, Seconds = Config.RoundSeconds }
-	setLava(lavaSettings.StartHeight)
-	if mode.Id == "memory" then memory(round) elseif mode.Id == "relay" then relay(round) else rescue(round) end
-	state.Total = round.Total
-	for i, player in ipairs(ready) do
-		if i <= Config.MaxParticipants then
-			participants[player] = { Alive = true, Contributed = false, LastInteraction = 0 }
-			teleport(player, Vector3.new(-10 + ((i - 1) % 5) * 5, 25, 34 - math.floor((i - 1) / 5) * 5))
-			root(player).Anchored = true
-		end
-	end
-	broadcast(); task.wait(3)
-	if mode.Id == "memory" then
-		state.Message = "OBSERVA LA SECUENCIA. Después activa las letras."
-		for step, code in ipairs(round.Sequence) do
-			state.DemoCode, state.DemoStep = code, step; broadcast(); task.wait(1)
-			state.DemoCode = nil; broadcast(); task.wait(0.2)
-		end
-		state.DemoCode, state.DemoStep = nil, nil
-		state.Message = "Activa la secuencia en orden y cruza al reactor."
-	end
-	state.Phase = "JUEGO"
-	round.StartedAt = os.clock()
-	for player, entry in pairs(participants) do
-		local r = root(player)
-		if entry.Alive and r then r.Anchored = false end
-	end
-	for remaining = Config.RoundSeconds, 0, -1 do
-		state.Seconds = remaining; broadcast()
-		local alive = false
-		for player, entry in pairs(participants) do
-			if entry.Alive then
-				local r = root(player)
-				if not r or r.Position.Y < 5 then
-					eliminate(player)
-					teleport(player, Vector3.new(0, 11, 153))
-				else alive = true end
+		state.Phase, state.Message, state.Seconds = "LOBBY", "Esperando jugadores en Ciudad Prisma", 0
+		while not closing and #readyPlayers() < Settings.MinimumPlayers do broadcast(); task.wait(1) end
+		if closing then break end
+		countdown("LOBBY", Settings.Intermission, "La próxima expedición comienza pronto · explora el lobby")
+		local roster = readyPlayers()
+		-- Rotate overflow fairly instead of always taking the lowest user IDs.
+		for index = #roster, 2, -1 do local swap = random:NextInteger(1, index); roster[index], roster[swap] = roster[swap], roster[index] end
+		while #roster > Settings.MaxParticipants do table.remove(roster) end
+		if #roster >= Settings.MinimumPlayers and not closing then
+			local ok, problem = xpcall(function() runMatch(roster) end, debug.traceback)
+			if not ok then
+				warn("Color Chaos ronda: " .. tostring(problem))
+				for player in pairs(sessions) do toLobby(player) end
+				currentRound = nil
+				state.Stage, state.Final, state.Solo = 0, false, false
+				countdown("LOBBY", 8, "La ronda se reinició. Tu lobby sigue disponible.")
 			end
 		end
-		if round.Success or not alive or remaining == 0 then break end
-		task.wait(1)
 	end
-	state.Phase = "RESULTADOS"
-	state.Target, state.DemoCode = nil, nil
-	state.Message = round.Success and "¡REACTOR REPARADO! El equipo devolvió el color." or "El reactor sigue apagado. ¡Lo intentaremos en la siguiente ronda!"
-	if round.ResetCarrier then round.ResetCarrier() end
-	for player, entry in pairs(participants) do
-		local record = profiles[player]
-		if record then
-			local coins, wins = Rules.reward(round.Success, entry.Contributed, entry.Alive, Config.WinCoins, Config.ParticipationCoins)
-			coins = freeCoins(record, coins)
-			record.Data.Wins += wins; record.Revision += 1
-			if entry.Contributed then
-				Progression.record(record.Data.Progress, { Rounds = 1, Actions = entry.Actions or 0, Wins = wins }, os.time(), Config)
-			end
-			stats(player)
-			personal(player, { Toast = coins > 0 and ("+" .. coins .. " monedas por colaborar") or "Colabora en un objetivo para ganar monedas." })
-		end
-		teleport(player, Vector3.new(random:NextInteger(-12, 12), 11, 153))
-	end
-	currentRound = nil
-	Debris:AddItem(round.Model, 0)
-	showPreview(true)
-	setLava(lavaSettings.StartHeight)
-	for remaining = Config.ResultSeconds, 1, -1 do state.Seconds = remaining; broadcast(); task.wait(1) end
+end
+
+local ok, problem = xpcall(run, debug.traceback)
+if not ok then
+	workspace:SetAttribute("ColorChaosBootStatus", "ERROR")
+	warn("Color Chaos no pudo iniciar. El lobby guardado permanece disponible.\n" .. tostring(problem))
 end

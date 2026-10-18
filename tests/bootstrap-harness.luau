@@ -53,6 +53,12 @@ advanceTime(interval)
 interval = resume(thread)
 check(welcome.Parent == playerGui, "creating an unready main UI does not dismiss the welcome")
 main:SetAttribute("Ready", true)
+workspace:SetAttribute("ColorChaosBootStatus", "ERROR")
+advanceTime(interval)
+interval = resume(thread)
+check(not welcome.destroyed and textWith("no pudo iniciarse") ~= nil,
+	"a ready client cannot dismiss a failed-server welcome")
+workspace:SetAttribute("ColorChaosBootStatus", "READY")
 advanceTime(interval)
 resume(thread)
 check(welcome.destroyed and playerGui:FindFirstChild("ColorChaosWelcome") == nil,
